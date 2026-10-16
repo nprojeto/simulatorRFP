@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
+<script>try{var t=localStorage.getItem("simFieldService.v1.tema");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulador Field Service</title>
@@ -148,7 +149,7 @@ button,input,select{font:inherit;color:inherit}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 /* Top bar */
-header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:1000}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:1500}
 header.top h1{font-size:16px;font-weight:600;margin:0;letter-spacing:-.01em}
 header.top .sub{color:var(--ink-3);font-size:12px}
 .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
@@ -214,7 +215,7 @@ table.mini td.x{width:22px;text-align:center}
 .card-h h2{font-size:14px;margin:0;font-weight:600}
 .card-h .sub{color:var(--ink-3);font-size:12px}
 .card-b{padding:14px 16px}
-#map{height:460px;border-radius:0 0 10px 10px;background:var(--panel-2)}
+#map{height:460px;border-radius:0 0 10px 10px;background:var(--panel-2);position:relative;z-index:0}
 .map-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-3);padding:20px;text-align:center}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -274,6 +275,14 @@ svg text{font-family:var(--sans)}
   .bars .bar{grid-template-columns:110px 1fr 90px}
 }
 .leaflet-popup-content{font-family:var(--sans);font-size:12.5px;margin:10px 12px}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip,.leaflet-tooltip,.leaflet-control-layers,.leaflet-bar a{background:var(--panel)!important;color:var(--ink)!important;border-color:var(--line-2)!important}
+.leaflet-tooltip{box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.leaflet-tooltip-top:before{border-top-color:var(--panel)!important}.leaflet-tooltip-bottom:before{border-bottom-color:var(--panel)!important}
+.leaflet-tooltip-left:before{border-left-color:var(--panel)!important}.leaflet-tooltip-right:before{border-right-color:var(--panel)!important}
+.leaflet-container .leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 80%,transparent);color:var(--ink-3)}
+.leaflet-container .leaflet-control-attribution a{color:var(--ink-2)}
+.leaflet-container{background:var(--panel-2)}
+.leaflet-container a.leaflet-popup-close-button{color:var(--ink-3)}
 .leaflet-popup-content table{border-collapse:collapse}
 .leaflet-popup-content td{padding:1px 6px 1px 0}
 .leaflet-popup-content td:last-child{text-align:right;font-family:var(--mono)}
@@ -299,6 +308,7 @@ svg text{font-family:var(--sans)}
   <button class="btn" id="btnExport">Salvar cenário</button>
   <button class="btn" id="btnImport">Abrir cenário</button>
   <button class="btn" id="btnReset" title="Voltar parâmetros padrão">Restaurar padrão</button>
+  <button class="btn" id="btnTema" title="Alternar tema claro/escuro"></button>
   <input type="file" id="fileCenario" accept=".json" class="hidden">
   <input type="file" id="fileDados" accept=".js,.json" class="hidden">
   <input type="file" id="fileCsv" accept=".csv,.txt" class="hidden">
@@ -1010,14 +1020,45 @@ function renderPremissas(r){
 }
 
 /* ---------------- Mapa ---------------- */
-let map=null, lyr={};
+let map=null, lyr={}, mapas=null, nomeMapa=null;
+function temaAtual(){ return document.documentElement.getAttribute("data-theme")==="light"? "light":"dark"; }
+function syncBotaoTema(){ const b=document.getElementById("btnTema"); if(b) b.textContent = temaAtual()==="dark"? "☀ Tema claro" : "☾ Tema escuro"; }
+document.getElementById("btnTema").addEventListener("click",()=>{
+  const novo = temaAtual()==="dark"? "light":"dark";
+  document.documentElement.setAttribute("data-theme",novo);
+  try{ localStorage.setItem(KEY+".tema",novo); }catch(e){}
+  syncBotaoTema();
+  if(map && mapas && (nomeMapa==="Cinza claro"||nomeMapa==="Cinza escuro")){
+    const alvo = novo==="dark"? "Cinza escuro":"Cinza claro";
+    map.removeLayer(mapas[nomeMapa]); mapas[alvo].addTo(map); nomeMapa=alvo;
+  }
+  update();
+});
+syncBotaoTema();
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function initMap(){
   const el=document.getElementById("map");
   if(!window.L){ el.innerHTML=`<div class="map-fallback">O mapa precisa de internet (Leaflet via cdnjs). O restante do simulador funciona offline.</div>`; return; }
-  map = L.map(el,{zoomSnap:0.5, worldCopyJump:false}).setView([-14.5,-52],4);
-  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`,{maxZoom:12, attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+  const BR = [[-34.5,-74.5],[6,-32]];
+  map = L.map(el,{zoomSnap:0.25, worldCopyJump:false, minZoom:3, maxBounds:[[-60,-110],[30,0]], maxBoundsViscosity:0.8});
+  map.fitBounds(BR,{padding:[10,10]});
+  // reenquadra quando o painel muda de tamanho (abrir arquivo, redimensionar janela, trocar aba)
+  let primeiro = true;
+  try{ new ResizeObserver(()=>{ map.invalidateSize(); if(primeiro && el.clientWidth>0){ map.fitBounds(BR,{padding:[10,10]}); primeiro=false; } }).observe(el); }catch(e){}
+  const dark = temaAtual()==="dark";
+  // Mapas sem chave de API (funcionam abrindo o arquivo direto do computador)
+  const esri = (svc)=>L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/tile/{z}/{y}/{x}`,{maxZoom:16, attribution:'Tiles &copy; Esri'});
+  mapas = {
+    "Cinza claro": esri("Canvas/World_Light_Gray_Base"),
+    "Cinza escuro": esri("Canvas/World_Dark_Gray_Base"),
+    "Ruas": esri("World_Street_Map"),
+    "Relevo": esri("World_Topo_Map")
+  };
+  nomeMapa = dark? "Cinza escuro" : "Cinza claro";
+  try{ const m=localStorage.getItem(KEY+".mapa"); if(m && mapas[m]) nomeMapa=m; }catch(e){}
+  mapas[nomeMapa].addTo(map);
+  L.control.layers(mapas,null,{position:"topright"}).addTo(map);
+  map.on("baselayerchange",e=>{ nomeMapa=e.name; try{ localStorage.setItem(KEY+".mapa", e.name); }catch(err){} });
   lyr.ufs=L.layerGroup().addTo(map); lyr.bases=L.layerGroup().addTo(map); lyr.raios=L.layerGroup().addTo(map); lyr.scpc=L.layerGroup().addTo(map); lyr.imp=L.layerGroup().addTo(map);
   map.on("click", e=>{
     const nome = prompt("Nome da nova base técnica:", "Base "+(BASES.length+1)); if(!nome) return;
