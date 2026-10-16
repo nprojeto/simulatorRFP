@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador Field Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Dados do projeto (opcional, privado). Não publique este arquivo. -->
+<!-- USO INTERNO: contém dados confidenciais. NÃO publicar. -->
+<script>
+/*
+ * DADOS DA RFP — CONFIDENCIAL
+ * RFP de Serviços de Campo (Field Service) – Manutenção de Estações Satelitais 2026 (Telespazio Brasil)
+ *
+ * Estas informações são "Informação Confidencial" nos termos do Acordo de Confidencialidade (cláusula 1.1(ii)).
+ * NÃO publique este arquivo em repositório público nem no GitHub Pages.
+ * O simulador (index.html) não contém dados do projeto: este arquivo é carregado ao lado dele ou pelo botão "Importar dados".
+ */
+window.SIM_DATA = {
+  meta: {
+    titulo: "RFP Field Service – Manutenção de Estações Satelitais 2026",
+    fonte: "RFP itens 1.4, 2.9, 2.11, 2.13, 4, 5, 9 e 11; Cronograma; LPU",
+    totalEstacoes: 5643,
+    variacaoQuantidade: 3 // % para mais ou para menos (item 2.11.1 ****)
+  },
+
+  // Item 2.11 — quantidade de estações por tipo e UF
+  estacoes: {
+    ka:   { AL:1, AM:1, BA:3, DF:1, MG:21, MS:55, MT:1, PB:1, PE:1, PR:90, RJ:3, RS:1, SC:12, SP:8 },
+    ku:   { AC:14, AL:29, AM:79, AP:29, BA:99, CE:93, DF:8, ES:55, GO:69, MA:127, MG:139, MS:46, MT:52, PA:344, PB:31, PE:73, PI:73, PR:140, RJ:314, RN:29, RO:22, RR:13, RS:45, SC:39, SE:22, SP:261, TO:6 },
+    nr10: { BA:236, CE:1, PE:30, RN:2, RS:76, SP:1 },
+    scpc: { AM:3, BA:5, GO:2, MG:3, MS:1, MT:1, PA:3, PE:3, PI:2, RJ:1, SP:2 },
+    sita: { AC:2, AL:1, AM:5, AP:1, BA:4, CE:3, DF:2, ES:1, GO:1, MA:2, MG:3, MS:1, MT:3, PA:8, PE:3, PI:1, PR:2, RJ:4, RN:1, RO:3, RR:1, RS:2, SC:1, SP:9, TO:1 },
+    slf:  { AC:52, AM:55, AP:7, BA:34, CE:16, DF:4, ES:22, GO:90, MA:25, MG:82, MS:16, MT:51, PA:44, PB:1, PE:67, PI:2, PR:78, RJ:43, RN:10, RO:12, RR:15, RS:102, SC:19, SE:6, SP:131, TO:4 },
+    slm:  { AC:30, AP:58, BA:401, CE:46, DF:15, ES:4, GO:1, MA:3, MG:28, MS:9, PA:58, PB:17, PE:188, PI:52, PR:44, RJ:117, RN:85, RO:6, RS:95, SC:439, SP:71, TO:1 }
+  },
+
+  // Item 2.11.2 — cidades das estações SCPC (coordenadas aproximadas do centro da cidade, adicionadas para o mapa)
+  scpcCidades: [
+    { cidade: "Maranhãozinho", uf: "PA", lat: -2.24, lng: -45.85, obs: "Listada como PA na RFP; o município de Maranhãozinho fica no MA" },
+    { cidade: "Bom Jesus da Lapa", uf: "BA", lat: -13.25, lng: -43.42 },
+    { cidade: "Serra Negra", uf: "SP", lat: -22.61, lng: -46.70 },
+    { cidade: "Três Marias", uf: "MG", lat: -18.20, lng: -45.24 },
+    { cidade: "São Félix do Araguaia", uf: "MT", lat: -11.62, lng: -50.67 },
+    { cidade: "Conceição do Araguaia", uf: "PA", lat: -8.26, lng: -49.26 },
+    { cidade: "Teófilo Otoni", uf: "MG", lat: -17.86, lng: -41.51 },
+    { cidade: "Presidente Prudente", uf: "SP", lat: -22.12, lng: -51.39 },
+    { cidade: "São Gabriel da Cachoeira", uf: "AM", lat: -0.13, lng: -67.09, qtd: 2 },
+    { cidade: "Fernando de Noronha", uf: "PE", lat: -3.85, lng: -32.42 },
+    { cidade: "Luziânia", uf: "GO", lat: -16.25, lng: -47.95 },
+    { cidade: "Floriano", uf: "PI", lat: -6.77, lng: -43.02 },
+    { cidade: "Corrente", uf: "PI", lat: -10.44, lng: -45.16 },
+    { cidade: "Barreiras", uf: "BA", lat: -12.15, lng: -45.00 },
+    { cidade: "Novo Progresso", uf: "PA", lat: -7.15, lng: -55.38 },
+    { cidade: "Caetité", uf: "BA", lat: -14.07, lng: -42.48 },
+    { cidade: "Niquelândia", uf: "GO", lat: -14.47, lng: -48.46 },
+    { cidade: "Anastácio", uf: "MS", lat: -20.48, lng: -55.81 },
+    { cidade: "Tabatinga", uf: "AM", lat: -4.25, lng: -69.94 },
+    { cidade: "Morro do Chapéu", uf: "BA", lat: -11.55, lng: -41.16 }
+  ],
+
+  loteRotulos: { A: "Lote A · N/NE/CO", B: "Lote B · SE/S", C: "Lote C · Nacional" },
+
+  // Textos exibidos na aba Premissas
+  premissas: [
+    "<b>Índice de referência (5.1):</b> VSAT + Starlink Fixa + Móvel = 2,5% · Só Starlink = 2,5% · VSAT + Fixa sem Móvel = 2,0% · Outras parciais com VSAT = 2,0%. Limite operacional = +0,5 pp (5.2).",
+    "<b>Volume de chamados (5.3 a 5.5):</b> até o limite operacional, o volume extra é risco da contratada. Acima dele, as visitas podem ser cobradas como improdutivas avulsas, com aprovação prévia. Reequilíbrio só a partir do 2º ano.",
+    "<b>Preço (1.4.3):</b> os valores da LPU devem ser brutos, com todos os impostos, e válidos por 12 meses.",
+    "<b>Deslocamento (2.9):</b> deslocamento terrestre e embarcação de linha estão no preço. Fretamento fluvial, 4×4, aéreo, andaime e banheiro químico são reembolsáveis com aprovação prévia (item 6) e entram na aba Mobilização da LPU.",
+    "<b>Pagamento (4):</b> 45 dias após aprovação da NF. Estações novas só entram na cobrança 90 dias após a instalação.",
+    "<b>Seguro-garantia (9):</b> 10% do valor do contrato, entregue em até 30 dias da assinatura. Sem a garantia aceita, nenhum pagamento é feito.",
+    "<b>Quantidade (2.11):</b> o parque pode variar ±3%. As estações NR-10 SEP exigem 2 técnicos CLT.",
+    "<b>Logística de sobressalentes (2.6):</b> o frete técnico ↔ sede ↔ laboratório é da contratada. Retorno à sede em até 5 dias úteis e ao laboratório em até 2 dias úteis.",
+    "<b>Software de localização (2.13):</b> a contratada mantém, por conta própria, o rastreamento dos técnicos e uma licença de visualização para o cliente."
+  ],
+
+  // Item 1.4.4 — lotes regionais
+  lotes: {
+    A: ["AC","AP","AM","PA","RO","RR","TO","AL","BA","CE","MA","PB","PE","PI","RN","SE","DF","GO","MT","MS"],
+    B: ["ES","MG","RJ","SP","PR","RS","SC"]
+  },
+
+  // Item 2.13 — SLA por faixa de distância (horas)
+  slaFaixas: [
+    { ate: 100,      ta: 20/60, td: 4,    tr: 1, ttr: 5 + 20/60, rotulo: "Até 100 km" },
+    { ate: 150,      ta: 1,     td: 5,    tr: 1, ttr: 7,         rotulo: "101–150 km" },
+    { ate: 300,      ta: 1,     td: 7,    tr: 1, ttr: 9,         rotulo: "151–300 km" },
+    { ate: 800,      ta: 1,     td: 11,   tr: 1, ttr: 13,        rotulo: "301–800 km" },
+    { ate: Infinity, ta: null,  td: null, tr: 1, ttr: null,      rotulo: "Acima de 800 km (a negociar)" }
+  ],
+
+  // Item 5.1 / 5.2 — índice mensal de atividades produtivas (% sobre estações)
+  indices: {
+    integral: 2.5,          // VSAT + Starlink Fixa + Starlink Móvel
+    soStarlink: 2.5,        // somente Starlink Fixa e/ou Móvel
+    vsatSlfSemSlm: 2.0,     // VSAT + Starlink Fixa, sem Móvel
+    parcialComVsat: 2.0,    // qualquer outra parcial com VSAT
+    acrescimoOperacional: 0.5
+  },
+
+  // Item 11 — ônus mensal sobre a fatura conforme % de atendimentos dentro do SLA
+  penalidades: [
+    { min: 95.1, onus: 0 },
+    { min: 90,   onus: 4 },
+    { min: 80,   onus: 10 },
+    { min: 0,    onus: 15 }
+  ],
+
+  pagamentoDias: 45,          // item 4.1
+  seguroGarantiaPct: 10,      // item 9.1 — % do valor do contrato
+  validadePrecosMeses: 12     // item 1.4.2
+};
+
+</script>
+<style>
+:root{
+  --bg:#f4f5f2; --panel:#ffffff; --panel-2:#f9faf7; --ink:#1b1f1d; --ink-2:#4a524e; --ink-3:#7b847f;
+  --line:#dfe3dd; --line-2:#c9cfc8; --accent:#0f5c4d; --accent-ink:#ffffff; --accent-soft:#e2efe9;
+  --ok:#2f7d4f; --warn:#b7791f; --bad:#b33a2e; --info:#2b5f9e;
+  --chart-1:#0f5c4d; --chart-2:#c98a2b; --chart-3:#5a6fb0; --chart-4:#9b4d6e; --chart-5:#6b8f3a;
+  --shadow:0 1px 2px rgba(20,30,25,.06),0 2px 8px rgba(20,30,25,.05);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121614; --panel:#1a1f1d; --panel-2:#161b19; --ink:#e7ece9; --ink-2:#b4bdb8; --ink-3:#86908b;
+    --line:#2a312e; --line-2:#3a433f; --accent:#4fb79c; --accent-ink:#0d1a16; --accent-soft:#1f3a33;
+    --ok:#5dbb84; --warn:#e0a84a; --bad:#e2685b; --info:#6fa2e0;
+    --chart-1:#4fb79c; --chart-2:#e0a84a; --chart-3:#8b9de0; --chart-4:#d27fa2; --chart-5:#9cc26a;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121614; --panel:#1a1f1d; --panel-2:#161b19; --ink:#e7ece9; --ink-2:#b4bdb8; --ink-3:#86908b;
+  --line:#2a312e; --line-2:#3a433f; --accent:#4fb79c; --accent-ink:#0d1a16; --accent-soft:#1f3a33;
+  --ok:#5dbb84; --warn:#e0a84a; --bad:#e2685b; --info:#6fa2e0;
+  --chart-1:#4fb79c; --chart-2:#e0a84a; --chart-3:#8b9de0; --chart-4:#d27fa2; --chart-5:#9cc26a;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+button,input,select{font:inherit;color:inherit}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Top bar */
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:1000}
+header.top h1{font-size:16px;font-weight:600;margin:0;letter-spacing:-.01em}
+header.top .sub{color:var(--ink-3);font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;color:var(--ink-2);font-size:13px}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--accent)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line-2);background:var(--panel);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:13px;color:var(--ink-2)}
+.btn:hover{border-color:var(--accent);color:var(--ink)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.kpi{background:var(--panel);padding:12px 16px}
+.kpi .l{font-size:11.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-family:var(--mono);font-size:20px;font-weight:500;margin-top:2px;white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--ink-3);margin-top:1px}
+.kpi.hl .v{color:var(--accent)}
+.t-ok{color:var(--ok)!important}.t-warn{color:var(--warn)!important}.t-bad{color:var(--bad)!important}
+
+/* Layout */
+.wrap{display:grid;grid-template-columns:360px minmax(0,1fr);min-height:calc(100vh - 140px)}
+aside.params{border-right:1px solid var(--line);background:var(--panel-2);overflow:auto;max-height:calc(100vh - 130px);position:sticky;top:130px}
+main{min-width:0;padding:16px 20px 40px}
+details.sec{border-bottom:1px solid var(--line)}
+details.sec>summary{list-style:none;cursor:pointer;padding:11px 16px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(-45deg);transition:transform .15s}
+details.sec[open]>summary::before{transform:rotate(45deg)}
+details.sec>summary .hint{font-weight:400;color:var(--ink-3);font-size:12px;margin-left:auto}
+.fields{padding:2px 16px 14px;display:grid;gap:8px}
+.f{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:8px}
+.f.fs{grid-template-columns:1fr 168px}
+.f label{font-size:12.5px;color:var(--ink-2)}
+.f label small{display:block;color:var(--ink-3);font-size:11px;line-height:1.3}
+.inp{display:flex;align-items:center;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);overflow:hidden}
+.inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.inp input,.inp select{border:0;background:transparent;width:100%;padding:5px 7px;font-family:var(--mono);font-size:12.5px;text-align:right;outline:none;min-width:0}
+.inp select{text-align:left;font-family:var(--sans)}
+.inp .u{padding:0 7px 0 0;color:var(--ink-3);font-size:11px;white-space:nowrap}
+.note{font-size:12px;color:var(--ink-3);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:8px 10px;line-height:1.4}
+.note b{color:var(--ink-2)}
+.note.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 9%,var(--panel))}
+.note.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--panel))}
+
+/* mini tables inside params */
+table.mini{width:100%;border-collapse:collapse;font-size:12px}
+table.mini th{font-weight:500;color:var(--ink-3);text-align:right;padding:3px 3px;font-size:11px}
+table.mini th:first-child{text-align:left}
+table.mini td{padding:2px 2px}
+table.mini td input{width:100%;border:1px solid var(--line-2);border-radius:5px;background:var(--panel);padding:3px 5px;font-family:var(--mono);font-size:12px;text-align:right;min-width:0}
+table.mini td input.txt{text-align:left;font-family:var(--sans)}
+table.mini td.x{width:22px;text-align:center}
+.icon-btn{border:0;background:transparent;color:var(--ink-3);cursor:pointer;padding:2px 4px;border-radius:4px}
+.icon-btn:hover{color:var(--bad);background:var(--panel)}
+
+/* Cards */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.card+.card{margin-top:16px}
+.card-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.card-h h2{font-size:14px;margin:0;font-weight:600}
+.card-h .sub{color:var(--ink-3);font-size:12px}
+.card-b{padding:14px 16px}
+#map{height:460px;border-radius:0 0 10px 10px;background:var(--panel-2)}
+.map-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-3);padding:20px;text-align:center}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:9px 14px;cursor:pointer;color:var(--ink-3);font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+.tab{display:none;padding-top:16px}.tab.on{display:block}
+
+/* Data tables */
+.tbl-wrap{overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th{position:sticky;top:0;background:var(--panel-2);color:var(--ink-3);font-weight:500;font-size:11.5px;text-align:right;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.dt th:first-child,table.dt td:first-child{text-align:left}
+table.dt td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.dt td.t{font-family:var(--sans)}
+table.dt tr.tot td{font-weight:600;background:var(--panel-2)}
+table.dt tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+table.dt td input{width:76px;border:1px solid var(--line-2);border-radius:5px;background:var(--panel);padding:2px 5px;font-family:var(--mono);font-size:12px;text-align:right}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-family:var(--sans);font-weight:500}
+.pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.pill.neu{background:color-mix(in srgb,var(--info) 14%,transparent);color:var(--info)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.card{min-width:0}
+.lpu-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.lpu{border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:var(--panel-2)}
+.lpu h3{margin:0 0 6px;font-size:13px;font-weight:600}
+.lpu .big{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--accent)}
+.lpu .row{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);padding:2px 0}
+.lpu .row span:last-child{font-family:var(--mono)}
+.lpu.off{opacity:.45}
+.price-in{display:flex;align-items:center;gap:6px;margin-top:6px}
+.price-in .inp{flex:1}
+
+.bars .bar{display:grid;grid-template-columns:170px 1fr 110px;align-items:center;gap:10px;font-size:12.5px;padding:3px 0}
+.bars .track{height:12px;background:var(--panel-2);border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.bars .fill{height:100%;background:var(--chart-1);border-radius:2px}
+.bars .val{text-align:right;font-family:var(--mono);color:var(--ink-2)}
+svg text{font-family:var(--sans)}
+.foot{color:var(--ink-3);font-size:12px;margin-top:20px;line-height:1.5}
+.hidden{display:none!important}
+.banner{margin:12px 20px 0;}
+
+@media (max-width: 980px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  .seg{flex-wrap:wrap}
+  .seg button{flex:1 1 auto}
+  .kpi .v{font-size:17px}
+  aside.params{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+  main{padding:16px}
+  header.top{position:static;padding:12px 16px}
+  .bars .bar{grid-template-columns:110px 1fr 90px}
+}
+.leaflet-popup-content{font-family:var(--sans);font-size:12.5px;margin:10px 12px}
+.leaflet-popup-content table{border-collapse:collapse}
+.leaflet-popup-content td{padding:1px 6px 1px 0}
+.leaflet-popup-content td:last-child{text-align:right;font-family:var(--mono)}
+.base-icon{background:var(--accent);border:2px solid #fff;border-radius:4px;width:14px!important;height:14px!important;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.base-icon.cred{background:#fff;border:2.5px solid var(--accent);border-radius:50%;width:11px!important;height:11px!important}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>Simulador de Preço · Field Service Satelital</h1>
+    <div class="sub" id="subtitulo">Simulação de preço por estação e por OS</div>
+  </div>
+  <div class="seg" id="segLote" title="Lote regional">
+    <button data-v="A">Lote A</button><button data-v="B">Lote B</button><button data-v="C">Lote C · Todas as UFs</button>
+  </div>
+  <label class="chk"><input type="checkbox" data-grupo="vsat"> Kit VSAT</label>
+  <label class="chk"><input type="checkbox" data-grupo="slf"> Starlink Fixa</label>
+  <label class="chk"><input type="checkbox" data-grupo="slm"> Starlink Móvel</label>
+  <div class="spacer"></div>
+  <button class="btn" id="btnImportDados" title="Carregar dados.js ou .json">Importar dados</button>
+  <button class="btn" id="btnExport">Salvar cenário</button>
+  <button class="btn" id="btnImport">Abrir cenário</button>
+  <button class="btn" id="btnReset" title="Voltar parâmetros padrão">Restaurar padrão</button>
+  <input type="file" id="fileCenario" accept=".json" class="hidden">
+  <input type="file" id="fileDados" accept=".js,.json" class="hidden">
+  <input type="file" id="fileCsv" accept=".csv,.txt" class="hidden">
+</header>
+
+<div class="kpis" id="kpis"></div>
+<div id="semDadosBanner" class="banner hidden"><div class="note warn"><b>Dados do projeto não carregados.</b> Coloque o arquivo <code>dados.js</code> na mesma pasta do <code>index.html</code> ou clique em <b>Importar dados</b>. Sem os dados, as quantidades ficam zeradas.</div></div>
+
+<div class="wrap">
+  <aside class="params" id="params"></aside>
+  <main>
+    <div class="card">
+      <div class="card-h">
+        <h2>Mapa de estações e bases</h2>
+        <span class="sub">Círculos = estações por UF (tamanho) · cor = SLA estimado · clique no mapa para adicionar uma base</span>
+        <div class="spacer"></div>
+        <label class="chk"><input type="checkbox" id="lyrRaios" checked> Raios 100/300/800 km</label>
+        <label class="chk"><input type="checkbox" id="lyrScpc" checked> Cidades SCPC</label>
+        <button class="btn" id="btnCsv">Importar estações (CSV lat/long)</button>
+      </div>
+      <div class="card-b" style="padding:8px 16px">
+        <div class="legend">
+          <span><i style="background:var(--ok)"></i>SLA ≥ 95,1%</span>
+          <span><i style="background:var(--warn)"></i>90–95%</span>
+          <span><i style="background:var(--bad)"></i>&lt; 90%</span>
+          <span><i style="background:var(--info)"></i>&gt; 800 km (a negociar)</span>
+          <span><i style="background:var(--accent);border-radius:3px"></i>Base própria (raios 100/300/800 km)</span>
+          <span><i style="background:transparent;border:2px solid var(--accent)"></i>Credenciado</span>
+          <span><i style="background:var(--chart-4)"></i>Cidade SCPC / estação importada</span>
+        </div>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button data-t="lpu" class="on">Preços (LPU)</button>
+      <button data-t="uf">Por estado</button>
+      <button data-t="custos">Custos e impostos</button>
+      <button data-t="sens">Sensibilidade</button>
+      <button data-t="premissas">Premissas</button>
+    </nav>
+    <section class="tab on" id="tab-lpu"></section>
+    <section class="tab" id="tab-uf"></section>
+    <section class="tab" id="tab-custos"></section>
+    <section class="tab" id="tab-sens"></section>
+    <section class="tab" id="tab-premissas"></section>
+
+    <p class="foot">Simulação para formação de preço. Sem lat/long, as distâncias são estimadas espalhando as estações de cada UF em 15 pontos e ligando cada ponto à base mais próxima. Você pode informar a distância média por UF ou importar as estações com lat/long. Confira os tributos com a sua contabilidade. Os valores não são aconselhamento fiscal.</p>
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- Constantes geográficas (públicas) ---------------- */
+const UF = {
+  AC:{n:"Acre",c:[-9.0,-70.5],a:164},  AL:{n:"Alagoas",c:[-9.6,-36.6],a:28},   AP:{n:"Amapá",c:[1.4,-51.8],a:143},
+  AM:{n:"Amazonas",c:[-4.2,-64.6],a:1559}, BA:{n:"Bahia",c:[-12.5,-41.7],a:565}, CE:{n:"Ceará",c:[-5.2,-39.5],a:149},
+  DF:{n:"Distrito Federal",c:[-15.8,-47.9],a:5.8}, ES:{n:"Espírito Santo",c:[-19.6,-40.6],a:46}, GO:{n:"Goiás",c:[-15.9,-49.6],a:340},
+  MA:{n:"Maranhão",c:[-5.0,-45.3],a:330}, MT:{n:"Mato Grosso",c:[-12.9,-55.9],a:903}, MS:{n:"Mato Grosso do Sul",c:[-20.5,-54.8],a:357},
+  MG:{n:"Minas Gerais",c:[-18.5,-44.6],a:587}, PA:{n:"Pará",c:[-3.8,-52.5],a:1248}, PB:{n:"Paraíba",c:[-7.2,-36.8],a:56},
+  PR:{n:"Paraná",c:[-24.6,-51.6],a:199}, PE:{n:"Pernambuco",c:[-8.4,-37.9],a:98}, PI:{n:"Piauí",c:[-7.7,-42.7],a:252},
+  RJ:{n:"Rio de Janeiro",c:[-22.3,-42.7],a:44}, RN:{n:"Rio Grande do Norte",c:[-5.8,-36.6],a:53}, RS:{n:"Rio Grande do Sul",c:[-29.7,-53.3],a:282},
+  RO:{n:"Rondônia",c:[-10.9,-63.0],a:238}, RR:{n:"Roraima",c:[2.1,-61.4],a:224}, SC:{n:"Santa Catarina",c:[-27.3,-50.4],a:95},
+  SP:{n:"São Paulo",c:[-22.3,-48.7],a:248}, SE:{n:"Sergipe",c:[-10.6,-37.4],a:22}, TO:{n:"Tocantins",c:[-10.2,-48.3],a:277}
+};
+const UFS = Object.keys(UF).sort();
+const TIPOS = [
+  {id:"ka",  nome:"Ka",               g:"vsat"},
+  {id:"ku",  nome:"Ku e C Padrão",    g:"vsat"},
+  {id:"nr10",nome:"NR10 SEP (2 téc.)",g:"vsat"},
+  {id:"scpc",nome:"SCPC",             g:"vsat"},
+  {id:"sita",nome:"SITA",             g:"vsat"},
+  {id:"slf", nome:"Starlink Fixa",    g:"slf"},
+  {id:"slm", nome:"Starlink Móvel",   g:"slm"}
+];
+const GRUPOS = {vsat:"Kit VSAT", slf:"Starlink Fixa", slm:"Starlink Móvel"};
+
+/* Sem dados do projeto: estrutura neutra, sem valores do cliente. Carregue dados.js para simular. */
+const DADOS_VAZIOS = {
+  meta:{titulo:"Sem dados carregados"}, estacoes:{ka:{},ku:{},nr10:{},scpc:{},sita:{},slf:{},slm:{}}, scpcCidades:[],
+  lotes:{A:[],B:[]}, loteRotulos:{A:"Lote A",B:"Lote B",C:"Lote C · Todas as UFs"},
+  slaFaixas:[{ate:Infinity,ta:null,td:null,tr:null,ttr:null,rotulo:"Não informado"}],
+  indices:{integral:2,soStarlink:2,vsatSlfSemSlm:2,parcialComVsat:2,acrescimoOperacional:0},
+  penalidades:[{min:0,onus:0}], premissas:[],
+  pagamentoDias:30, seguroGarantiaPct:0, validadePrecosMeses:12
+};
+let D = window.SIM_DATA || window.RFP_DATA || DADOS_VAZIOS;
+function normDados(d){
+  const base = JSON.parse(JSON.stringify(DADOS_VAZIOS)); base.slaFaixas = DADOS_VAZIOS.slaFaixas;
+  const out = Object.assign(base, d||{});
+  out.slaFaixas = (out.slaFaixas||DADOS_VAZIOS.slaFaixas).map(f=>Object.assign({},f,{ate:(f.ate==null||f.ate==="Infinity")?Infinity:f.ate}));
+  TIPOS.forEach(t=>{ out.estacoes[t.id] = out.estacoes[t.id]||{}; });
+  return out;
+}
+D = normDados(D);
+
+/* ---------------- Parâmetros padrão ---------------- */
+/* clt/pj = equipe própria (custo fixo mensal) · cred = credenciados pagos por OS (sem custo fixo) */
+const BASES_PADRAO = [
+  {nome:"São José dos Campos (sede)", lat:-23.18, lng:-45.89, clt:1, pj:0, cred:0},
+  {nome:"São Paulo",        lat:-23.55, lng:-46.63, clt:1, pj:0, cred:0},
+  {nome:"Rio de Janeiro",   lat:-22.91, lng:-43.17, clt:1, pj:0, cred:0},
+  {nome:"Curitiba",         lat:-25.43, lng:-49.27, clt:1, pj:0, cred:0},
+  {nome:"Itajaí",           lat:-26.91, lng:-48.66, clt:2, pj:0, cred:0},
+  {nome:"Porto Alegre",     lat:-30.03, lng:-51.23, clt:2, pj:0, cred:0},
+  {nome:"Salvador",         lat:-12.97, lng:-38.50, clt:2, pj:0, cred:0},
+  {nome:"Recife",           lat:-8.05,  lng:-34.88, clt:2, pj:0, cred:0},
+  {nome:"Belém",            lat:-1.46,  lng:-48.50, clt:1, pj:0, cred:0},
+  {nome:"Belo Horizonte",   lat:-19.92, lng:-43.94, clt:0, pj:0, cred:1},
+  {nome:"Uberlândia",       lat:-18.92, lng:-48.28, clt:0, pj:0, cred:1},
+  {nome:"Montes Claros",    lat:-16.73, lng:-43.86, clt:0, pj:0, cred:1},
+  {nome:"Ribeirão Preto",   lat:-21.18, lng:-47.81, clt:0, pj:0, cred:1},
+  {nome:"Presidente Prudente", lat:-22.12, lng:-51.39, clt:0, pj:0, cred:1},
+  {nome:"Vitória",          lat:-20.32, lng:-40.34, clt:0, pj:0, cred:1},
+  {nome:"Campos dos Goytacazes", lat:-21.75, lng:-41.32, clt:0, pj:0, cred:1},
+  {nome:"Cascavel",         lat:-24.96, lng:-53.46, clt:0, pj:0, cred:1},
+  {nome:"Chapecó",          lat:-27.10, lng:-52.62, clt:0, pj:0, cred:1},
+  {nome:"Passo Fundo",      lat:-28.26, lng:-52.41, clt:0, pj:0, cred:1},
+  {nome:"Santa Maria",      lat:-29.69, lng:-53.81, clt:0, pj:0, cred:1},
+  {nome:"Vitória da Conquista", lat:-14.86, lng:-40.84, clt:0, pj:0, cred:1},
+  {nome:"Barreiras",        lat:-12.15, lng:-45.00, clt:0, pj:0, cred:1},
+  {nome:"Juazeiro / Petrolina", lat:-9.41, lng:-40.50, clt:0, pj:0, cred:1},
+  {nome:"Maceió",           lat:-9.67,  lng:-35.74, clt:0, pj:0, cred:1},
+  {nome:"Aracaju",          lat:-10.91, lng:-37.07, clt:0, pj:0, cred:1},
+  {nome:"João Pessoa",      lat:-7.12,  lng:-34.86, clt:0, pj:0, cred:1},
+  {nome:"Natal",            lat:-5.79,  lng:-35.21, clt:0, pj:0, cred:1},
+  {nome:"Fortaleza",        lat:-3.73,  lng:-38.53, clt:0, pj:0, cred:1},
+  {nome:"Juazeiro do Norte",lat:-7.21,  lng:-39.31, clt:0, pj:0, cred:1},
+  {nome:"Teresina",         lat:-5.09,  lng:-42.80, clt:0, pj:0, cred:1},
+  {nome:"São Luís",         lat:-2.53,  lng:-44.30, clt:0, pj:0, cred:1},
+  {nome:"Imperatriz",       lat:-5.53,  lng:-47.48, clt:0, pj:0, cred:1},
+  {nome:"Marabá",           lat:-5.37,  lng:-49.12, clt:0, pj:0, cred:1},
+  {nome:"Santarém",         lat:-2.44,  lng:-54.71, clt:0, pj:0, cred:1},
+  {nome:"Altamira",         lat:-3.20,  lng:-52.21, clt:0, pj:0, cred:1},
+  {nome:"Macapá",           lat:0.03,   lng:-51.07, clt:0, pj:0, cred:1},
+  {nome:"Manaus",           lat:-3.12,  lng:-60.02, clt:0, pj:0, cred:1},
+  {nome:"Boa Vista",        lat:2.82,   lng:-60.67, clt:0, pj:0, cred:1},
+  {nome:"Porto Velho",      lat:-8.76,  lng:-63.90, clt:0, pj:0, cred:1},
+  {nome:"Rio Branco",       lat:-9.97,  lng:-67.81, clt:0, pj:0, cred:1},
+  {nome:"Palmas",           lat:-10.18, lng:-48.33, clt:0, pj:0, cred:1},
+  {nome:"Araguaína",        lat:-7.19,  lng:-48.21, clt:0, pj:0, cred:1},
+  {nome:"Brasília",         lat:-15.79, lng:-47.88, clt:0, pj:0, cred:1},
+  {nome:"Goiânia",          lat:-16.68, lng:-49.25, clt:0, pj:0, cred:1},
+  {nome:"Campo Grande",     lat:-20.47, lng:-54.62, clt:0, pj:0, cred:1},
+  {nome:"Dourados",         lat:-22.22, lng:-54.81, clt:0, pj:0, cred:1},
+  {nome:"Cuiabá",           lat:-15.60, lng:-56.10, clt:0, pj:0, cred:1},
+  {nome:"Sinop",            lat:-11.86, lng:-55.50, clt:0, pj:0, cred:1}
+];
+const PADRAO = {
+  lote:"C", grupos:{vsat:true, slf:true, slm:true},
+  modo:"margem",               // "margem" = calcula preço; "preco" = testa preço informado
+  precoTeste:{vsat:0, slf:0, slm:0},
+  indiceModo:"ref", indiceCustom:2.5,
+  // Operação
+  velocidade:60, fatorRota:1.3, adminH:0.5, limiarDiaria:250, eficienciaSla:97,
+  tipos:{
+    ka:{rep:1.5, tec:1, mat:45}, ku:{rep:1.5, tec:1, mat:45}, nr10:{rep:2.0, tec:2, mat:60},
+    scpc:{rep:2.5, tec:1, mat:80}, sita:{rep:1.5, tec:1, mat:45}, slf:{rep:1.0, tec:1, mat:35}, slm:{rep:1.5, tec:1, mat:50}
+  },
+  improdutivasPct:8,           // visitas improdutivas não remuneradas (% sobre visitas)
+  // Custos variáveis
+  custoKm:1.20, diaria:380,
+  // Equipe
+  salario:3800, encargos:85, sobreaviso:20, beneficios:1350, custoPJ:9500, credVisita:450,
+  horasMes:176, utilizacao:60,
+  veiculoMes:2900, ferramental:22000, amortMeses:36, sstTec:260, softwareTec:70,
+  coordQtd:5, coordSalario:5200, gestorMes:16000,
+  logistica:4500, outrosFixos:3500, overhead:8,
+  // Impostos
+  regime:"presumido", iss:5, simples:16.9, pis:0.65, cofins:3.0, pisReal:1.65, cofinsReal:7.6, creditoPisCofins:25,
+  presuncao:32, ibsCbsTeste:false,
+  // Comercial
+  margem:12, taxaFin:1.6, seguroTaxa:1.2, slaModo:"auto", slaManual:95.5, contingencia:1.5,
+  improdutivaRemunPct:60, foraPlantaPct:30,
+  overrideKm:{}
+};
+
+/* ---------------- Estado + persistência ---------------- */
+const KEY = "simFieldService.v1";
+let P, BASES, IMPORT = [];
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function deepMerge(a,b){ for(const k in b){ if(b[k] && typeof b[k]==="object" && !Array.isArray(b[k]) && a[k] && typeof a[k]==="object") deepMerge(a[k],b[k]); else a[k]=b[k]; } return a; }
+function load(){
+  P = clone(PADRAO); BASES = clone(BASES_PADRAO);
+  try{ const s = JSON.parse(localStorage.getItem(KEY)||"null"); if(s){ if(s.P) deepMerge(P,s.P); if(Array.isArray(s.BASES)) BASES=s.BASES; if(Array.isArray(s.IMPORT)) IMPORT=s.IMPORT; } }catch(e){}
+  try{ const dd = localStorage.getItem(KEY+".dados"); if(!(window.SIM_DATA||window.RFP_DATA) && dd){ D = normDados(JSON.parse(dd)); } }catch(e){}
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({P,BASES,IMPORT})); }catch(e){} }
+
+/* ---------------- Utilidades ---------------- */
+const fmtBRL = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:2});
+const fmtBRL0 = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const fmtN0 = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0});
+const fmtN1 = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1, minimumFractionDigits:1});
+const fmtN2 = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:2, minimumFractionDigits:2});
+const R$ = v => isFinite(v)? fmtBRL.format(v) : "—";
+const R$0 = v => isFinite(v)? fmtBRL0.format(v) : "—";
+const pct = (v,d=1) => isFinite(v)? (d===1?fmtN1:fmtN2).format(v)+"%" : "—";
+const n0 = v => isFinite(v)? fmtN0.format(v) : "—";
+const n1 = v => isFinite(v)? fmtN1.format(v) : "—";
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function hav(a,b){ const R=6371, r=Math.PI/180; const dLat=(b[0]-a[0])*r, dLng=(b[1]-a[1])*r;
+  const x=Math.sin(dLat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+const proprios = b => (+b.clt||0)+(+b.pj||0);
+const temGente = b => proprios(b)+(+b.cred||0) > 0;
+function nearestBase(pt){ let best=null, bi=-1, bd=Infinity; BASES.forEach((b,i)=>{ if(!temGente(b)) return; const d=hav(pt,[b.lat,b.lng]); if(d<bd){bd=d;best=b;bi=i;} }); return {base:best, idx:bi, km:bd}; }
+function faixa(km){ return D.slaFaixas.find(f=>km<=f.ate) || D.slaFaixas[D.slaFaixas.length-1]; }
+function ufsDoLote(l){ return l==="A"? D.lotes.A : l==="B"? D.lotes.B : UFS; }
+function indiceRef(g){
+  const I=D.indices;
+  if(g.vsat && g.slf && g.slm) return I.integral;
+  if(!g.vsat && (g.slf||g.slm)) return I.soStarlink;
+  if(g.vsat && g.slf && !g.slm) return I.vsatSlfSemSlm;
+  if(g.vsat) return I.parcialComVsat;
+  return I.integral;
+}
+function onusSla(slaPct){ const t = D.penalidades.find(p=>slaPct>=p.min) || D.penalidades[D.penalidades.length-1]; return t.onus; }
+
+/* ---------------- Modelo ---------------- */
+/* Amostras de localização das estações dentro da UF.
+   Sem lat/long: 15 pontos num disco de área equivalente à da UF (centro + anel 55% + anel 90%),
+   cada ponto atendido pela base mais próxima. Com CSV importado: as estações reais. */
+function amostrasUF(uf){
+  const c = UF[uf].c;
+  const ov = +P.overrideKm[uf];
+  if(ov>0){ const nb=nearestBase(c); return {fonte:"manual", pts:[{km:ov, w:1, b:nb.idx}]}; }
+  const imp = IMPORT.filter(s=>s.uf===uf && isFinite(s.lat) && isFinite(s.lng));
+  if(imp.length && BASES.some(temGente)){
+    return {fonte:"importado ("+imp.length+")", pts: imp.map(s=>{ const nb=nearestBase([s.lat,s.lng]); return {km:Math.max(5,nb.km*P.fatorRota), w:1/imp.length, b:nb.idx}; })};
+  }
+  const R = Math.sqrt(UF[uf].a*1000/Math.PI);
+  const kLat = 111.0, kLng = 111.0*Math.cos(c[0]*Math.PI/180);
+  const pts = [];
+  const add = (r,ang,w)=>{ const lat=c[0]+r*Math.sin(ang)/kLat, lng=c[1]+r*Math.cos(ang)/kLng; const nb=nearestBase([lat,lng]);
+    pts.push({km: Math.max(8,(isFinite(nb.km)? nb.km : R)*P.fatorRota), w, b:nb.idx}); };
+  add(0,0,0.09);
+  for(let i=0;i<6;i++) add(0.55*R, i*Math.PI/3, 0.4725/6);
+  for(let i=0;i<8;i++) add(0.9*R, i*Math.PI/4+Math.PI/8, 0.4375/8);
+  return {fonte:"estimado", pts};
+}
+function dentroSla(km){ const f=faixa(km); if(f.td==null) return {ok:1, neg:1}; return {ok: km/P.velocidade<=f.td ? 1:0, neg:0}; }
+
+function custos(indice){
+  const ufs = ufsDoLote(P.lote);
+  const ativos = TIPOS.filter(t=>P.grupos[t.g]);
+  const linhas = [];
+  const porTipo = {}; TIPOS.forEach(t=>porTipo[t.id]={n:0,v:0,h:0,var:0,vEff:0,km:0});
+  const bs = BASES.map(()=>({v:0, h:0, var:0}));
+  let H=0, Hown=0, VAR=0, NV=0, NE=0, slaPond=0, slaPeso=0, negPeso=0;
+  ufs.forEach(uf=>{
+    const am = amostrasUF(uf);
+    let km=0, sla=0, neg=0; const peso={};
+    am.pts.forEach(p=>{ km+=p.w*p.km; const s=dentroSla(p.km); sla+=p.w*s.ok; neg+=p.w*s.neg; peso[p.b]=(peso[p.b]||0)+p.w; });
+    const bi = Object.keys(peso).sort((a,b)=>peso[b]-peso[a])[0];
+    const row = {uf, km, fonte:am.fonte, base:BASES[bi], nBases:Object.keys(peso).filter(k=>k>=0).length, faixa:faixa(km), sla:sla*100*(P.eficienciaSla/100), neg, n:0, v:0, h:0, var:0, porTipo:{}};
+    ativos.forEach(t=>{
+      const n = +D.estacoes[t.id][uf]||0; if(!n) return;
+      const tp = P.tipos[t.id];
+      const v = n*indice/100, vEff = v*(1+P.improdutivasPct/100);
+      let h=0, cv=0, kmv=0;
+      am.pts.forEach(p=>{
+        const b = BASES[p.b]; const own = b && proprios(b)>0;
+        const vv = vEff*p.w;
+        const hv = (2*p.km/P.velocidade + tp.rep + P.adminH)*tp.tec;
+        const c1 = 2*p.km*P.custoKm + tp.mat + (p.km>P.limiarDiaria? P.diaria*tp.tec : 0) + (own? 0 : P.credVisita*tp.tec);
+        h += hv*vv; cv += c1*vv; kmv += p.km*v*p.w;
+        if(p.b>=0){ bs[p.b].v += v*p.w; bs[p.b].var += c1*vv; if(own){ bs[p.b].h += hv*vv; Hown += hv*vv; } }
+      });
+      row.n+=n; row.v+=v; row.h+=h; row.var+=cv; row.porTipo[t.id]=n;
+      const pt=porTipo[t.id]; pt.n+=n; pt.v+=v; pt.vEff+=vEff; pt.h+=h; pt.var+=cv; pt.km+=kmv;
+    });
+    if(row.n>0){ linhas.push(row); H+=row.h; VAR+=row.var; NV+=row.v; NE+=row.n; slaPond+=row.sla*row.v; slaPeso+=row.v; negPeso+=row.neg*row.v; }
+  });
+  // equipe própria: só bases com atendimento no escopo
+  const custoCLT = P.salario*(1+P.encargos/100+P.sobreaviso/100)+P.beneficios;
+  const custoTec = P.veiculoMes + P.ferramental/Math.max(1,P.amortMeses) + P.sstTec + P.softwareTec;
+  const horaExtraH = P.salario/P.horasMes*1.5*(1+P.encargos/100);
+  let clt=0, pj=0, cred=0, cap=0, deficit=0, equipe=0, porTec=0;
+  const basesUso = BASES.map((b,i)=>{
+    const s = bs[i]; const ativa = s.v>0.0001;
+    const tecs = proprios(b); const capB = tecs*P.horasMes*P.utilizacao/100;
+    const def = tecs>0? Math.max(0, s.h-capB) : 0;
+    if(ativa){ clt+=(+b.clt||0); pj+=(+b.pj||0); cred+=(+b.cred||0)*(tecs>0?0:1); cap+=capB; deficit+=def;
+      equipe += (+b.clt||0)*custoCLT + (+b.pj||0)*P.custoPJ; porTec += tecs*custoTec; }
+    return {b, i, ativa, tipo: tecs>0? "própria" : (b.cred>0? "credenciado":"—"), v:s.v, h:s.h, var:s.var, cap:capB, ocup: capB>0? s.h/capB*100 : null, deficit:def};
+  });
+  const tec = clt+pj;
+  const horaExtra = deficit*horaExtraH;
+  const coord = P.coordQtd*(P.coordSalario*(1+P.encargos/100)+P.beneficios) + P.gestorMes;
+  const outros = P.logistica + P.outrosFixos;
+  const FIX = equipe + porTec + coord + outros + horaExtra;
+  const C0 = FIX + VAR; const OV = C0*P.overhead/100; const C = C0+OV;
+  // alocação por grupo: variável direto, fixo pelas horas de campo
+  const grupos = {};
+  Object.keys(GRUPOS).forEach(g=>grupos[g]={n:0,v:0,vEff:0,h:0,var:0,fix:0,c:0,km:0});
+  TIPOS.forEach(t=>{ const pt=porTipo[t.id], gg=grupos[t.g]; gg.n+=pt.n; gg.v+=pt.v; gg.vEff+=pt.vEff; gg.h+=pt.h; gg.var+=pt.var; gg.km+=pt.km; });
+  Object.values(grupos).forEach(g=>{ g.fix = H>0? FIX*g.h/H : 0; g.c=(g.fix+g.var)*(1+P.overhead/100); g.kmMedio = g.v>0? g.km/g.v : 0; });
+  TIPOS.forEach(t=>{ const pt=porTipo[t.id]; pt.c = ((H>0?FIX*pt.h/H:0)+pt.var)*(1+P.overhead/100); });
+  const slaEst = slaPeso>0? slaPond/slaPeso : 100;
+  return {linhas, porTipo, grupos, H, Hown, cap, deficit, horaExtra, VAR, FIX, equipe, porTec, coord, outros, OV, C, NV, NE, clt, pj, cred, tec, basesUso, slaEst, negPct: slaPeso? negPeso/slaPeso*100:0};
+}
+
+function aliquotas(){
+  // retorna % sobre receita: nota (destacados na NF), irpj/csll quando proporcional à receita, e se IR é sobre lucro
+  const r = {nota:0, irRec:0, irLucro:0, detalhe:[]};
+  if(P.regime==="simples"){
+    r.nota = P.simples; r.detalhe.push(["Simples Nacional (DAS, alíquota efetiva)",P.simples]);
+  } else if(P.regime==="presumido"){
+    r.nota = P.pis+P.cofins+P.iss;
+    r.detalhe.push(["PIS (cumulativo)",P.pis],["COFINS (cumulativo)",P.cofins],["ISS",P.iss]);
+    const irpj = 15*P.presuncao/100, csll = 9*P.presuncao/100;
+    r.irRec = irpj+csll; r.detalhe.push(["IRPJ 15% × presunção "+P.presuncao+"%",irpj],["CSLL 9% × presunção "+P.presuncao+"%",csll]);
+  } else {
+    const pis = P.pisReal*(1-P.creditoPisCofins/100), cof = P.cofinsReal*(1-P.creditoPisCofins/100);
+    r.nota = P.pisReal+P.cofinsReal+P.iss;
+    r.credito = (P.pisReal+P.cofinsReal)*P.creditoPisCofins/100;
+    r.detalhe.push(["PIS não cumulativo",P.pisReal],["COFINS não cumulativo",P.cofinsReal],["(−) créditos PIS/COFINS estimados",-r.credito],["ISS",P.iss]);
+    r.irLucro = 34; r.detalhe.push(["IRPJ + CSLL sobre lucro (15%+10%+9%)","34% do lucro"]);
+  }
+  if(P.ibsCbsTeste){ r.detalhe.push(["CBS 0,9% + IBS 0,1% (2026, compensável)", "informativo"]); }
+  return r;
+}
+
+function precificar(){
+  const idxRef = indiceRef(P.grupos);
+  const indice = P.indiceModo==="ref"? idxRef : P.indiceModo==="limite"? idxRef+D.indices.acrescimoOperacional : +P.indiceCustom;
+  const K = custos(indice);
+  const A = aliquotas();
+  const fin = P.taxaFin*(D.pagamentoDias/30);                       // % da receita
+  const seg = D.seguroGarantiaPct/100*P.seguroTaxa;                  // % garantia × 12 meses × taxa a.a. / 12 → % receita/mês
+  const slaPct = P.slaModo==="auto"? K.slaEst : +P.slaManual;
+  const onus = onusSla(slaPct);
+  const cont = P.contingencia;
+  const creditoReal = P.regime==="real"? (A.credito||0) : 0;
+  const notaEfetiva = A.nota - creditoReal;
+  let R, adicionalIR=0;
+  const deducoes = () => notaEfetiva + A.irRec + fin + seg + onus + cont + adicionalIR;
+  if(P.modo==="preco"){
+    R = Object.keys(GRUPOS).reduce((s,g)=> s + (P.grupos[g]? (+P.precoTeste[g]||0)*K.grupos[g].n : 0), 0);
+  } else {
+    const mDiv = P.regime==="real"? P.margem/(1-A.irLucro/100) : P.margem;
+    for(let i=0;i<6;i++){
+      const div = 1 - (deducoes() + mDiv)/100;
+      R = div>0.02? K.C/div : NaN;
+      if(P.regime==="presumido" && isFinite(R)){ const base=R*P.presuncao/100; adicionalIR = R>0? Math.max(0,(base-20000)*0.10)/R*100 : 0; }
+    }
+  }
+  if(P.regime==="presumido" && P.modo==="preco" && R>0){ adicionalIR = Math.max(0,(R*P.presuncao/100-20000)*0.10)/R*100; }
+  // resultado
+  const vNota = R*notaEfetiva/100, vIrRec = R*(A.irRec+adicionalIR)/100, vFin=R*fin/100, vSeg=R*seg/100, vOnus=R*onus/100, vCont=R*cont/100;
+  const lair = R - K.C - vNota - vFin - vSeg - vOnus - vCont - (P.regime==="presumido"||P.regime==="simples"? 0:0);
+  const irLucro = P.regime==="real"? Math.max(0,lair)*A.irLucro/100 : 0;
+  const lucro = lair - vIrRec - irLucro;
+  const margem = R>0? lucro/R*100 : NaN;
+  // por grupo
+  const G = {};
+  Object.keys(GRUPOS).forEach(g=>{
+    const k = K.grupos[g]; const ativo = P.grupos[g] && k.n>0;
+    const Rg = P.modo==="preco"? (+P.precoTeste[g]||0)*k.n : (K.C>0? R*k.c/K.C : 0);
+    const preco = k.n>0? Rg/k.n : NaN;
+    const impNota = preco*A.nota/100;
+    const custoVisita = k.vEff>0? (k.var/k.vEff + (K.H>0? K.FIX/K.H : 0)*(k.h/k.vEff))*(1+P.overhead/100) : NaN;
+    const div = 1 - (deducoes() + (P.regime==="real"? P.margem/(1-A.irLucro/100) : P.margem))/100;
+    const visita = custoVisita/div;
+    G[g] = {ativo, n:k.n, v:k.v, kmMedio:k.kmMedio, custo:k.c, R:Rg, preco, impNota, semImp:preco-impNota, porOS: k.v>0? Rg/k.v : NaN,
+      custoVisita, visita, improdutiva: visita*P.improdutivaRemunPct/100, foraPlanta: visita*(1+P.foraPlantaPct/100),
+      margem: P.modo==="preco" && Rg>0 ? null : null};
+  });
+  // margem por grupo no modo preço
+  if(P.modo==="preco"){
+    Object.keys(G).forEach(g=>{ const x=G[g]; if(x.R>0){ const l = x.R*(1-(notaEfetiva+A.irRec+adicionalIR+fin+seg+onus+cont)/100) - x.custo; x.margem = (P.regime==="real"? l*(1-A.irLucro/100): l)/x.R*100; } });
+  }
+  return {K, A, idxRef, indice, fin, seg, onus, cont, slaPct, R, notaEfetiva, adicionalIR, vNota, vIrRec, vFin, vSeg, vOnus, vCont, irLucro, lucro, margem, G, creditoReal};
+}
+
+function margemComIndice(R, idx){
+  // mantém o preço (receita) fixo e muda o volume de visitas
+  const K = custos(idx); const A = aliquotas();
+  const fin = P.taxaFin*(D.pagamentoDias/30), seg = D.seguroGarantiaPct/100*P.seguroTaxa;
+  const credito = P.regime==="real"? (A.credito||0):0;
+  let adic = 0; if(P.regime==="presumido") adic = Math.max(0,(R*P.presuncao/100-20000)*0.10);
+  const lair = R*(1-(A.nota-credito+fin+seg+onusSla(P.slaModo==="auto"?K.slaEst:+P.slaManual)+P.contingencia)/100) - K.C;
+  const lucro = P.regime==="real"? lair*(lair>0?(1-A.irLucro/100):1) : lair - R*A.irRec/100 - adic;
+  return {margem: R>0? lucro/R*100 : NaN, deficit:K.deficit, C:K.C};
+}
+
+/* ---------------- UI: parâmetros ---------------- */
+const SECOES = [
+  {t:"Volume e índice de atividades", open:true, campos:[
+    {k:"indiceModo", l:"Cenário de índice", sel:[["ref","Referência do escopo"],["limite","Limite operacional (+0,5 pp)"],["custom","Personalizado"]]},
+    {k:"indiceCustom", l:"Índice personalizado", u:"%/mês", st:0.1, show:()=>P.indiceModo==="custom"},
+    {k:"improdutivasPct", l:"Visitas improdutivas não remuneradas", s:"Custo sem receita (% sobre as visitas produtivas)", u:"%", st:1}
+  ]},
+  {t:"Deslocamento e atendimento", campos:[
+    {k:"velocidade", l:"Velocidade média na estrada", u:"km/h", st:5},
+    {k:"fatorRota", l:"Fator de rota", s:"Estrada ÷ linha reta (1,2 a 1,5)", u:"×", st:0.05},
+    {k:"adminH", l:"Tempo administrativo por visita", s:"Contato com NOC, RAT, fotos", u:"h", st:0.25},
+    {k:"limiarDiaria", l:"Distância que exige pernoite", s:"Ida acima disso paga uma diária", u:"km", st:10},
+    {k:"eficienciaSla", l:"Eficiência operacional", s:"% sem falhas por fila/peça/acesso", u:"%", st:0.5}
+  ], extra:"tipos"},
+  {t:"Custos variáveis por visita", campos:[
+    {k:"custoKm", l:"Custo por km rodado", s:"Combustível, pedágio, desgaste", u:"R$/km", st:0.05},
+    {k:"diaria", l:"Diária (hotel + alimentação)", u:"R$/téc.", st:10}
+  ]},
+  {t:"Equipe técnica e bases", campos:[
+    {k:"salario", l:"Salário técnico CLT", u:"R$/mês", st:100},
+    {k:"encargos", l:"Encargos + provisões CLT", s:"INSS, FGTS, 13º, férias, RAT…", u:"%", st:1},
+    {k:"sobreaviso", l:"Sobreaviso / adicional 24×7", u:"% sal.", st:1},
+    {k:"beneficios", l:"Benefícios por pessoa", s:"VR/VA, saúde, seguro de vida", u:"R$/mês", st:50},
+    {k:"custoPJ", l:"Técnico PJ dedicado", u:"R$/mês", st:100},
+    {k:"credVisita", l:"Credenciado: valor por OS", s:"Mão de obra por técnico; km e diária pagos à parte", u:"R$/OS", st:10},
+    {k:"horasMes", l:"Horas disponíveis por técnico", u:"h/mês", st:4},
+    {k:"utilizacao", l:"Utilização produtiva", s:"Parte das horas em campo", u:"%", st:5},
+    {k:"veiculoMes", l:"Veículo (locação/seguro)", u:"R$/téc./mês", st:100},
+    {k:"ferramental", l:"Ferramental por técnico", s:"Notebook, satfinder, GPS, multímetro…", u:"R$", st:500},
+    {k:"amortMeses", l:"Amortização do ferramental", u:"meses", st:6},
+    {k:"sstTec", l:"SST por técnico", s:"ASO, NR-10, NR-35, EPI, PGR/PCMSO", u:"R$/mês", st:10},
+    {k:"softwareTec", l:"Software de localização", s:"Rastreamento da equipe", u:"R$/téc./mês", st:5}
+  ], extra:"bases"},
+  {t:"Estrutura fixa", campos:[
+    {k:"coordQtd", l:"Coordenação 24×7 (pessoas)", s:"Cobrir 24h × 7 dias exige ~5", u:"pessoas", st:1},
+    {k:"coordSalario", l:"Salário coordenação", u:"R$/mês", st:100},
+    {k:"gestorMes", l:"Gestor do contrato", u:"R$/mês", st:500},
+    {k:"logistica", l:"Logística de sobressalentes", s:"Fretes sede ↔ bases ↔ laboratório", u:"R$/mês", st:100},
+    {k:"outrosFixos", l:"Outros fixos", s:"Escritório, sistemas, telefonia", u:"R$/mês", st:100},
+    {k:"overhead", l:"Overhead administrativo", u:"% custo", st:0.5}
+  ]},
+  {t:"Impostos da nota", hint:"preço bruto", open:true, campos:[
+    {k:"regime", l:"Regime tributário", sel:[["simples","Simples Nacional"],["presumido","Lucro Presumido"],["real","Lucro Real"]]},
+    {k:"simples", l:"Alíquota efetiva do Simples", s:"Ver faixa do Anexo III/IV", u:"%", st:0.1, show:()=>P.regime==="simples"},
+    {k:"iss", l:"ISS do município", s:"2% a 5%", u:"%", st:0.5, show:()=>P.regime!=="simples"},
+    {k:"pis", l:"PIS cumulativo", u:"%", st:0.01, show:()=>P.regime==="presumido"},
+    {k:"cofins", l:"COFINS cumulativo", u:"%", st:0.1, show:()=>P.regime==="presumido"},
+    {k:"presuncao", l:"Presunção de lucro (serviços)", u:"%", st:1, show:()=>P.regime==="presumido"},
+    {k:"pisReal", l:"PIS não cumulativo", u:"%", st:0.01, show:()=>P.regime==="real"},
+    {k:"cofinsReal", l:"COFINS não cumulativo", u:"%", st:0.1, show:()=>P.regime==="real"},
+    {k:"creditoPisCofins", l:"Créditos de PIS/COFINS", s:"% do débito recuperado", u:"%", st:1, show:()=>P.regime==="real"},
+    {k:"ibsCbsTeste", l:"Destacar CBS/IBS de teste (2026)", chk:true}
+  ], extra:"impostoNota"},
+  {t:"Comercial e riscos", open:true, campos:[
+    {k:"modo", l:"O que calcular", sel:[["margem","Preço a partir da margem"],["preco","Margem a partir do meu preço"]]},
+    {k:"margem", l:"Margem líquida desejada", s:"Lucro após IR sobre a receita", u:"%", st:0.5, show:()=>P.modo==="margem"},
+    {k:"taxaFin", l:"Custo financeiro", s:"Sobre o prazo de pagamento da NF", u:"% a.m.", st:0.1},
+    {k:"seguroTaxa", l:"Prêmio do seguro-garantia", s:"Sobre o valor garantido do contrato", u:"% a.a.", st:0.1},
+    {k:"slaModo", l:"SLA para penalidade", sel:[["auto","Estimado pelo modelo"],["manual","Informar"]]},
+    {k:"slaManual", l:"% de atendimentos no SLA", u:"%", st:0.5, show:()=>P.slaModo==="manual"},
+    {k:"contingencia", l:"Contingência / risco", u:"% receita", st:0.5},
+    {k:"improdutivaRemunPct", l:"Visita improdutiva (avulsa)", s:"% da visita produtiva", u:"%", st:5},
+    {k:"foraPlantaPct", l:"Acréscimo fora da planta", s:"Sites fora do contrato recorrente", u:"%", st:5}
+  ]}
+];
+
+const elParams = document.getElementById("params");
+function renderParams(){
+  const openState = {}; elParams.querySelectorAll("details.sec").forEach((d,i)=>openState[i]=d.open);
+  let h = "";
+  SECOES.forEach((s,i)=>{
+    const open = (i in openState)? openState[i] : !!s.open;
+    h += `<details class="sec" ${open?"open":""}><summary>${s.t}${s.hint?`<span class="hint">${s.hint}</span>`:""}</summary><div class="fields">`;
+    s.campos.forEach(c=>{
+      if(c.show && !c.show()) return;
+      let input;
+      if(c.sel) input = `<div class="inp"><select data-k="${c.k}">${c.sel.map(o=>`<option value="${o[0]}" ${P[c.k]===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>`;
+      else if(c.chk) input = `<label class="chk" style="justify-self:end"><input type="checkbox" data-k="${c.k}" ${P[c.k]?"checked":""}></label>`;
+      else input = `<div class="inp"><input type="number" data-k="${c.k}" value="${P[c.k]}" step="${c.st||1}"><span class="u">${c.u||""}</span></div>`;
+      h += `<div class="f${c.sel?" fs":""}"><label>${c.l}${c.s?`<small>${c.s}</small>`:""}</label>${input}</div>`;
+    });
+    if(s.extra==="tipos") h += tiposTable();
+    if(s.extra==="bases") h += basesTable();
+    if(s.extra==="impostoNota") h += `<div class="note" id="notaImpostos"></div>`;
+    h += `</div></details>`;
+  });
+  elParams.innerHTML = h;
+}
+function tiposTable(){
+  let h = `<div style="margin-top:4px"><div style="font-size:12px;color:var(--ink-2);margin-bottom:4px">Por tipo de estação</div><table class="mini"><thead><tr><th>Tipo</th><th>Reparo (h)</th><th>Técnicos</th><th>Material R$</th></tr></thead><tbody>`;
+  TIPOS.forEach(t=>{ const x=P.tipos[t.id];
+    h += `<tr><td>${t.nome}</td><td><input type="number" step="0.25" data-tipo="${t.id}" data-f="rep" value="${x.rep}"></td><td><input type="number" step="1" min="1" data-tipo="${t.id}" data-f="tec" value="${x.tec}"></td><td><input type="number" step="5" data-tipo="${t.id}" data-f="mat" value="${x.mat}"></td></tr>`; });
+  return h + `</tbody></table></div>`;
+}
+function basesTable(){
+  const clt = BASES.reduce((s,b)=>s+(+b.clt||0),0), pj = BASES.reduce((s,b)=>s+(+b.pj||0),0), cr = BASES.reduce((s,b)=>s+(+b.cred||0),0);
+  let h = `<div style="margin-top:6px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--ink-2)">Bases (${BASES.length}) · ${clt} CLT · ${pj} PJ · ${cr} cred.</span><button class="btn" id="addBase" style="padding:3px 8px;font-size:12px">+ base</button></div>
+  <div style="overflow-x:auto"><table class="mini"><thead><tr><th>Base</th><th>Lat</th><th>Lng</th><th title="Técnicos CLT próprios">CLT</th><th title="Técnicos PJ dedicados (mensal)">PJ</th><th title="Credenciados pagos por OS">Cred</th><th></th></tr></thead><tbody>`;
+  BASES.forEach((b,i)=>{
+    h += `<tr><td><input class="txt" data-b="${i}" data-f="nome" value="${esc(b.nome)}" style="min-width:90px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lat" value="${b.lat}" style="width:56px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lng" value="${b.lng}" style="width:56px"></td><td><input type="number" min="0" data-b="${i}" data-f="clt" value="${b.clt||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="pj" value="${b.pj||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="cred" value="${b.cred||0}" style="width:34px"></td><td class="x"><button class="icon-btn" data-del="${i}" title="Remover">✕</button></td></tr>`;
+  });
+  return h + `</tbody></table></div><div class="note" style="margin-top:6px"><b>CLT/PJ</b> = equipe própria, com custo fixo mensal. <b>Cred</b> = credenciado, pago por OS. Se a base tiver equipe própria, ela atende primeiro. Uma base entra no custo só quando atende alguma estação do escopo. Clique no mapa para criar uma base ou arraste uma base existente.</div></div>`;
+}
+elParams.addEventListener("change", onParam);
+elParams.addEventListener("input", e=>{ if(e.target.matches('input[type="number"]')) onParam(e); });
+function onParam(e){
+  const t=e.target;
+  if(t.dataset.k){
+    const k=t.dataset.k;
+    if(t.type==="checkbox") P[k]=t.checked;
+    else if(t.tagName==="SELECT") P[k]=t.value;
+    else { const v=parseFloat(t.value); if(!isFinite(v)) return; P[k]=v; }
+    if(t.tagName==="SELECT"||t.type==="checkbox"){ renderParams(); }
+  } else if(t.dataset.tipo){ const v=parseFloat(t.value); if(!isFinite(v)) return; P.tipos[t.dataset.tipo][t.dataset.f]=v; }
+  else if(t.dataset.b!=null){ const b=BASES[+t.dataset.b]; const f=t.dataset.f; if(f==="nome") b.nome=t.value; else { const v=parseFloat(t.value); if(!isFinite(v)) return; b[f]=v; }
+    if(e.type==="change") { renderParams(); } }
+  update();
+}
+elParams.addEventListener("click", e=>{
+  const d=e.target.closest("[data-del]"); if(d){ BASES.splice(+d.dataset.del,1); renderParams(); update(); return; }
+  if(e.target.id==="addBase"){ BASES.push({nome:"Nova base", lat:-15.8, lng:-47.9, clt:0, pj:0, cred:1}); renderParams(); update(); }
+});
+
+/* ---------------- Top bar ---------------- */
+document.querySelectorAll("#segLote button").forEach(b=>b.addEventListener("click",()=>{P.lote=b.dataset.v; update();}));
+document.querySelectorAll("[data-grupo]").forEach(c=>c.addEventListener("change",()=>{P.grupos[c.dataset.grupo]=c.checked; update();}));
+function syncTop(){
+  const LR = D.loteRotulos||{}; document.querySelectorAll("#segLote button").forEach(b=>{ if(LR[b.dataset.v]) b.textContent=LR[b.dataset.v]; });
+  if(D.meta&&D.meta.titulo) document.getElementById("subtitulo").textContent=D.meta.titulo;
+  document.querySelectorAll("#segLote button").forEach(b=>b.classList.toggle("on",b.dataset.v===P.lote));
+  document.querySelectorAll("[data-grupo]").forEach(c=>c.checked=!!P.grupos[c.dataset.grupo]);
+}
+document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="tab-"+b.dataset.t));
+  try{ localStorage.setItem(KEY+".tab", b.dataset.t); }catch(e){}
+  if(b.dataset.t==="uf" && map) setTimeout(()=>map.invalidateSize(),50);
+}));
+
+/* ---------------- Render ---------------- */
+let ULT = null;
+function update(){
+  syncTop();
+  const r = precificar(); ULT = r;
+  renderKpis(r); renderLpu(r); renderUF(r); renderCustos(r); renderSens(r); renderPremissas(r); renderMap(r);
+  const ni = document.getElementById("notaImpostos");
+  if(ni){
+    ni.innerHTML = `<b>Tributos na nota: ${pct(r.A.nota,2)}</b>${P.regime==="real"?` (efetivo ${pct(r.notaEfetiva,2)} após créditos)`:""}${P.regime==="presumido"?` + IRPJ/CSLL ${pct(r.A.irRec+r.adicionalIR,2)} da receita`:""}${P.regime==="real"?` + IRPJ/CSLL 34% do lucro`:""}.<br>Preços fixos por ${D.validadePrecosMeses} meses: a partir de jan/2027 a CBS substitui PIS/COFINS. Considere uma cláusula de reequilíbrio tributário nas Premissas da LPU.`;
+  }
+  save();
+}
+
+function renderKpis(r){
+  const K=r.K;
+  const ut = K.cap>0? K.Hown/K.cap*100 : (K.Hown>0? Infinity : 0);
+  const mCls = r.margem<0?"t-bad": r.margem<5?"t-warn":"t-ok";
+  const sCls = r.slaPct>=95.1?"t-ok": r.slaPct>=90?"t-warn":"t-bad";
+  const uCls = ut>100?"t-bad": ut>85?"t-warn":"t-ok";
+  const preco = K.NE>0? r.R/K.NE : NaN;
+  document.getElementById("kpis").innerHTML = [
+    {l:"Faturamento mensal", v:R$0(r.R), s:R$0(r.R*12)+" / ano", hl:true},
+    {l:"Custo mensal", v:R$0(K.C), s:"fixo "+R$0(K.FIX)+" · variável "+R$0(K.VAR)},
+    {l:"Margem líquida", v:pct(r.margem), s:"lucro "+R$0(r.lucro)+"/mês", cls:mCls},
+    {l:"Preço médio / estação", v:R$(preco), s:n0(K.NE)+" estações no escopo"},
+    {l:"Visitas produtivas / mês", v:n1(K.NV), s:"índice "+pct(r.indice,2)+" · "+R$0(K.NV>0?r.R/K.NV:NaN)+"/OS"},
+    {l:"SLA estimado", v:pct(r.slaPct), s:r.onus? "ônus de "+r.onus+"% na fatura":"sem ônus", cls:sCls},
+    {l:"Ocupação equipe própria", v:isFinite(ut)?pct(ut,1):"sem capacidade", s:K.tec+" próprios · "+K.cred+" credenciados", cls:uCls}
+  ].map(k=>`<div class="kpi ${k.hl?"hl":""}"><div class="l">${k.l}</div><div class="v ${k.cls||""}">${k.v}</div><div class="s">${k.s}</div></div>`).join("");
+}
+
+function renderLpu(r){
+  const el = document.getElementById("tab-lpu");
+  const avisos = [];
+  if(r.K.deficit>0) avisos.push(`<div class="note bad"><b>A equipe não comporta o volume.</b> Faltam ${n0(r.K.deficit)} h/mês, cobertas como hora extra (${R$0(r.K.horaExtra)}/mês). Adicione técnicos nas bases.</div>`);
+  if(!isFinite(r.R)) avisos.push(`<div class="note bad"><b>Não fecha a conta:</b> impostos + margem + riscos passam de 100% da receita. Reduza a margem ou os percentuais.</div>`);
+  if(r.K.NE===0) avisos.push(`<div class="note warn">Nenhuma estação no escopo. Selecione grupos e lote no topo ou carregue os dados do projeto.</div>`);
+  const cards = Object.keys(GRUPOS).map(g=>{
+    const x=r.G[g]; const off = !P.grupos[g]||!x.n;
+    return `<div class="lpu ${off?"off":""}">
+      <h3>${GRUPOS[g]} <span class="pill neu" style="margin-left:4px">${n0(x.n)} est.</span></h3>
+      ${P.modo==="preco"? `<div class="price-in"><div class="inp"><input type="number" step="1" data-preco="${g}" value="${P.precoTeste[g]||0}"><span class="u">R$/est./mês</span></div></div>
+         <div class="row" style="margin-top:6px"><span>Margem do grupo</span><span class="${x.margem<0?"t-bad":""}">${x.margem==null?"—":pct(x.margem)}</span></div>`
+       : `<div class="big">${R$(x.preco)}</div><div style="font-size:11.5px;color:var(--ink-3);margin-bottom:6px">por estação / mês (preço bruto)</div>`}
+      <div class="row"><span>Preço sem impostos da nota</span><span>${R$(x.semImp)}</span></div>
+      <div class="row"><span>Impostos da nota (${pct(r.A.nota,2)})</span><span>${R$(x.impNota)}</span></div>
+      <div class="row"><span>Faturamento mensal</span><span>${R$0(x.R)}</span></div>
+      <div class="row"><span>Visitas/mês · km médio (ida)</span><span>${n1(x.v)} · ${n0(x.kmMedio)}</span></div>
+      <div class="row"><span>Equivalente por OS</span><span>${R$(x.porOS)}</span></div>
+    </div>`;
+  }).join("");
+  const avul = Object.keys(GRUPOS).filter(g=>P.grupos[g]&&r.G[g].n).map(g=>{ const x=r.G[g];
+    return `<tr><td class="t">${GRUPOS[g]}</td><td>${R$(x.custoVisita)}</td><td>${R$(x.visita)}</td><td>${R$(x.improdutiva)}</td><td>${R$(x.foraPlanta)}</td></tr>`; }).join("");
+  // por tipo (informativo)
+  const tipos = TIPOS.filter(t=>P.grupos[t.g] && r.K.porTipo[t.id].n).map(t=>{
+    const pt=r.K.porTipo[t.id]; const share = r.K.C>0? pt.c/r.K.C : 0; const Rt = P.modo==="preco"? (+P.precoTeste[t.g]||0)*pt.n : r.R*share;
+    return `<tr><td class="t">${t.nome}</td><td>${n0(pt.n)}</td><td>${n1(pt.v)}</td><td>${n0(pt.v? pt.km/pt.v:0)}</td><td>${R$0(pt.c)}</td><td>${R$(pt.n? (r.R*share)/pt.n : NaN)}</td></tr>`;
+  }).join("");
+  el.innerHTML = `${avisos.join("")}
+  <div class="card" style="margin-top:${avisos.length?12:0}px"><div class="card-h"><h2>Preço recorrente por estação</h2><span class="sub">${P.modo==="preco"?"testando o seu preço":"margem líquida de "+pct(P.margem)} · Lote ${P.lote}</span><div class="spacer"></div><button class="btn" id="btnCsvLpu">Exportar CSV</button></div>
+  <div class="card-b"><div class="lpu-cards">${cards}</div></div></div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><div class="card-h"><h2>Serviços avulsos (por OS)</h2><span class="sub">Preço bruto com deslocamento ordinário</span></div>
+      <div class="tbl-wrap"><table class="dt"><thead><tr><th>Grupo</th><th>Custo/visita</th><th>Visita produtiva</th><th>Improdutiva</th><th>Fora da planta</th></tr></thead><tbody>${avul||`<tr><td class="t" colspan="5">—</td></tr>`}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Custo real por tipo</h2><span class="sub">O Kit VSAT tem um preço único; aqui você vê quem pesa mais</span></div>
+      <div class="tbl-wrap"><table class="dt"><thead><tr><th>Tipo</th><th>Estações</th><th>Visitas</th><th>km ida</th><th>Custo/mês</th><th>Preço/est.</th></tr></thead><tbody>${tipos||`<tr><td class="t" colspan="6">—</td></tr>`}</tbody></table></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="card-b"><div class="note"><b>Por estação ou por OS?</b> No preço recorrente por estação, o volume de chamados até o limite operacional (${pct(r.idxRef+D.indices.acrescimoOperacional,1)}) é risco seu. A coluna "Equivalente por OS" mostra quanto cada visita vale ao preço recorrente. Se o volume real ficar abaixo do índice, você ganha. Se ficar acima, você absorve o custo até o limite. Veja a aba Sensibilidade.</div></div></div>`;
+  el.querySelectorAll("[data-preco]").forEach(i=>i.addEventListener("change",()=>{ const v=parseFloat(i.value); P.precoTeste[i.dataset.preco]=isFinite(v)?v:0; update(); }));
+  const b = document.getElementById("btnCsvLpu"); if(b) b.onclick = ()=>exportLpuCsv(r);
+}
+
+function renderUF(r){
+  const el = document.getElementById("tab-uf");
+  const ativos = TIPOS.filter(t=>P.grupos[t.g]);
+  const linhas = r.K.linhas.slice().sort((a,b)=>b.n-a.n);
+  const cls = s => s>=95.1?"ok": s>=90?"warn":"bad";
+  const tot = {n:0,v:0,var:0,h:0}; const totT={}; ativos.forEach(t=>totT[t.id]=0);
+  let body = linhas.map(l=>{
+    tot.n+=l.n; tot.v+=l.v; tot.var+=l.var; tot.h+=l.h; ativos.forEach(t=>totT[t.id]+=(l.porTipo[t.id]||0));
+    const negoc = l.faixa.td==null;
+    return `<tr><td class="t"><b>${l.uf}</b> <span style="color:var(--ink-3)">${UF[l.uf].n}</span></td>
+      ${ativos.map(t=>`<td>${l.porTipo[t.id]? n0(l.porTipo[t.id]) : "<span style='color:var(--ink-3)'>·</span>"}</td>`).join("")}
+      <td><b>${n0(l.n)}</b></td><td>${n1(l.v)}</td>
+      <td class="t" style="text-align:left">${l.base? esc(l.base.nome):"—"}</td>
+      <td><input type="number" min="0" step="10" data-ov="${l.uf}" value="${P.overrideKm[l.uf]||""}" placeholder="${n0(l.km)}" title="Distância média base→estação (km, ida). Vazio = estimado"></td>
+      <td class="t" style="text-align:left">${negoc?`<span class="pill neu">a negociar</span>`:esc(l.faixa.rotulo)}</td>
+      <td><span class="pill ${negoc?"neu":cls(l.sla)}">${pct(l.sla)}</span></td>
+      <td>${R$0(l.var)}</td><td>${n0(l.h)}</td></tr>`;
+  }).join("");
+  body += `<tr class="tot"><td class="t">Total</td>${ativos.map(t=>`<td>${n0(totT[t.id])}</td>`).join("")}<td>${n0(tot.n)}</td><td>${n1(tot.v)}</td><td></td><td></td><td></td><td>${pct(r.K.slaEst)}</td><td>${R$0(tot.var)}</td><td>${n0(tot.h)}</td></tr>`;
+  el.innerHTML = `<div class="card"><div class="card-h"><h2>Quantidade de serviço por estado</h2><span class="sub">Edite a coluna km para usar a sua distância média real por UF</span><div class="spacer"></div><button class="btn" id="limparOv">Limpar distâncias manuais</button></div>
+    <div class="tbl-wrap"><table class="dt"><thead><tr><th>UF</th>${ativos.map(t=>`<th>${t.nome}</th>`).join("")}<th>Total est.</th><th>Visitas/mês</th><th style="text-align:left">Base mais próxima</th><th>km ida</th><th style="text-align:left">Faixa SLA</th><th>SLA est.</th><th>Var. R$/mês</th><th>Horas/mês</th></tr></thead><tbody>${body}</tbody></table></div></div>
+    <div class="note" style="margin-top:12px">Sem lat/long, cada UF vira 15 pontos espalhados numa área igual à do estado. Cada ponto é atendido pela base mais próxima, e a distância em linha reta é multiplicada pelo fator de rota. O SLA estimado compara o tempo de deslocamento de cada ponto, na velocidade informada, com o prazo da faixa de SLA e aplica a eficiência operacional. Com o CSV de estações importado, o cálculo usa as coordenadas reais.</div>`;
+  el.querySelectorAll("[data-ov]").forEach(i=>i.addEventListener("change",()=>{ const v=parseFloat(i.value); if(v>0) P.overrideKm[i.dataset.ov]=v; else delete P.overrideKm[i.dataset.ov]; update(); }));
+  document.getElementById("limparOv").onclick=()=>{ P.overrideKm={}; update(); };
+}
+
+function renderCustos(r){
+  const K=r.K, el=document.getElementById("tab-custos");
+  const itens = [
+    ["Técnicos (salário, encargos, sobreaviso, benefícios / PJ)", K.equipe],
+    ["Veículos, ferramental, SST e software por técnico", K.porTec],
+    ["Coordenação 24×7 e gestão do contrato", K.coord],
+    ["Logística de sobressalentes e outros fixos", K.outros],
+    ["Horas extras (falta de capacidade)", K.horaExtra],
+    ["Deslocamento, diárias e material por visita", K.VAR],
+    ["Overhead administrativo", K.OV]
+  ];
+  const ded = [
+    ["Impostos da nota"+(P.regime==="real"?" (após créditos)":""), r.vNota],
+    [P.regime==="presumido"?"IRPJ + CSLL presumidos (+ adicional)":P.regime==="real"?"IRPJ + CSLL sobre o lucro":"IRPJ/CSLL (incluídos no DAS)", P.regime==="real"? r.irLucro : r.vIrRec],
+    ["Custo financeiro ("+D.pagamentoDias+" dias)", r.vFin],
+    ["Seguro-garantia", r.vSeg],
+    ["Ônus de SLA esperado ("+r.onus+"%)", r.vOnus],
+    ["Contingência", r.vCont]
+  ];
+  const max = Math.max(...itens.map(i=>i[1]), ...ded.map(d=>d[1]), r.lucro, 1);
+  const bar = (l,v,c) => `<div class="bar"><span>${l}</span><div class="track"><div class="fill" style="width:${Math.max(0,v/max*100)}%;background:${c}"></div></div><span class="val">${R$0(v)}</span></div>`;
+  const imp = r.A.detalhe.map(d=>`<tr><td class="t">${d[0]}</td><td>${typeof d[1]==="number"? pct(d[1],2):d[1]}</td></tr>`).join("");
+  el.innerHTML = `<div class="grid2">
+    <div class="card"><div class="card-h"><h2>Para onde vai cada real faturado</h2><span class="sub">${R$0(r.R)}/mês</span></div><div class="card-b bars">
+      ${itens.map(i=>bar(i[0],i[1],"var(--chart-1)")).join("")}
+      <div style="height:8px"></div>${ded.map(d=>bar(d[0],d[1],"var(--chart-2)")).join("")}
+      <div style="height:8px"></div>${bar("Lucro líquido",r.lucro, r.lucro>=0?"var(--ok)":"var(--bad)")}
+    </div></div>
+    <div class="card"><div class="card-h"><h2>Impostos da nota fiscal</h2><span class="sub">${P.regime==="simples"?"Simples Nacional":P.regime==="presumido"?"Lucro Presumido":"Lucro Real"}</span></div>
+      <div class="tbl-wrap"><table class="dt"><tbody>${imp}
+        <tr class="tot"><td class="t">Total destacado na nota</td><td>${pct(r.A.nota,2)}</td></tr>
+        <tr><td class="t">Formação de preço (divisor)</td><td>${pct(100-(r.notaEfetiva+r.A.irRec+r.adicionalIR+r.fin+r.seg+r.onus+r.cont+(P.modo==="margem"?(P.regime==="real"?P.margem/0.66:P.margem):0)),2)}</td></tr>
+      </tbody></table></div>
+      <div class="card-b"><div class="note">Preço bruto = custo ÷ (1 − impostos − custo financeiro − seguro − ônus − contingência − margem). No Lucro Real, a margem líquida é convertida para antes do IR (÷ 0,66). Verifique também a retenção de INSS (11%) e de ISS na fonte, que afetam o caixa mas não o preço.</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="card-h"><h2>Bases: visitas, horas e ocupação</h2><span class="sub">${K.clt} CLT · ${K.pj} PJ · ${K.cred} credenciados em uso · ${n0(K.Hown)} h/mês de equipe própria · ${n0(K.H)} h/mês no total</span></div>
+    <div class="tbl-wrap"><table class="dt"><thead><tr><th>Base</th><th style="text-align:left">Tipo</th><th>Técnicos</th><th>Visitas/mês</th><th>Horas/mês</th><th>Capacidade</th><th>Ocupação</th><th>Custo variável</th></tr></thead><tbody>
+    ${K.basesUso.filter(u=>u.ativa).sort((a,b)=>b.v-a.v).map(u=>`<tr><td class="t">${esc(u.b.nome)}</td><td class="t" style="text-align:left">${u.tipo==="própria"?`<span class="pill ok">própria</span>`:`<span class="pill neu">credenciado</span>`}</td><td>${u.tipo==="própria"? proprios(u.b) : (u.b.cred||0)}</td><td>${n1(u.v)}</td><td>${u.tipo==="própria"? n0(u.h):"—"}</td><td>${u.tipo==="própria"? n0(u.cap):"—"}</td><td>${u.ocup==null?"—":`<span class="pill ${u.ocup>100?"bad":u.ocup>85?"warn":"ok"}">${pct(u.ocup)}</span>`}</td><td>${R$0(u.var)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="card-b"><div class="note">Com ~${n1(K.NV)} visitas/mês para ${n0(K.NE)} estações, quem define o número de técnicos é a <b>cobertura geográfica do SLA</b>, não as horas. Mantenha equipe própria onde há volume e use credenciados no interior. ${K.basesUso.filter(u=>!u.ativa&&temGente(u.b)).length? `${K.basesUso.filter(u=>!u.ativa&&temGente(u.b)).length} base(s) não atendem estações deste escopo e ficaram fora do custo.`:""}</div></div></div>`;
+}
+
+function renderSens(r){
+  const el=document.getElementById("tab-sens");
+  if(!(r.R>0)){ el.innerHTML=`<div class="note">Sem receita para simular.</div>`; return; }
+  const xs=[]; for(let i=0.5;i<=5.001;i+=0.25) xs.push(+i.toFixed(2));
+  const pts = xs.map(x=>({x, m:margemComIndice(r.R,x).margem}));
+  const W=720,H=300,ml=52,mr=16,mt=16,mb=40;
+  const ymin=Math.min(-10,...pts.map(p=>p.m)), ymax=Math.max(20,...pts.map(p=>p.m));
+  const sx=x=>ml+(x-0.5)/(4.5)*(W-ml-mr), sy=y=>mt+(ymax-y)/(ymax-ymin)*(H-mt-mb);
+  let grid=""; const step = (ymax-ymin)>60?20:10;
+  for(let y=Math.ceil(ymin/step)*step;y<=ymax;y+=step) grid+=`<line x1="${ml}" x2="${W-mr}" y1="${sy(y)}" y2="${sy(y)}" stroke="var(--line)" ${y===0?'stroke="var(--ink-3)"':""}/><text x="${ml-8}" y="${sy(y)+4}" text-anchor="end" font-size="11" fill="var(--ink-3)">${y}%</text>`;
+  xs.filter(x=>Math.abs(x*2-Math.round(x*2))<1e-9).forEach(x=>grid+=`<text x="${sx(x)}" y="${H-mb+18}" text-anchor="middle" font-size="11" fill="var(--ink-3)">${n1(x)}%</text>`);
+  const path = pts.map((p,i)=>(i?"L":"M")+sx(p.x).toFixed(1)+","+sy(p.m).toFixed(1)).join("");
+  const ref=r.idxRef, lim=r.idxRef+D.indices.acrescimoOperacional;
+  const mk=(x,l,c)=>`<line x1="${sx(x)}" x2="${sx(x)}" y1="${mt}" y2="${H-mb}" stroke="${c}" stroke-dasharray="4 3"/><text x="${sx(x)+4}" y="${mt+12}" font-size="11" fill="${c}">${l}</text>`;
+  const be = (()=>{ for(let i=1;i<pts.length;i++){ if(pts[i-1].m>=0 && pts[i].m<0){ const a=pts[i-1],b=pts[i]; return a.x+(b.x-a.x)*a.m/(a.m-b.m);} } return null; })();
+  const rows=[ref, lim, ref*1.5, ref*2].map(x=>{ const m=margemComIndice(r.R,x); return `<tr><td class="t">${x===ref?"Referência":x===lim?"Limite operacional":x===ref*1.5?"Referência +50%":"Referência ×2"}</td><td>${pct(x,2)}</td><td>${n1(r.K.NE*x/100)}</td><td>${R$0(m.C)}</td><td class="${m.margem<0?"t-bad":""}">${pct(m.margem)}</td></tr>`; }).join("");
+  // variação de ±3% no parque
+  el.innerHTML = `<div class="card"><div class="card-h"><h2>Margem × volume de chamados</h2><span class="sub">Preço fixo no valor atual; o índice mensal de atividades varia</span></div>
+    <div class="card-b"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Margem líquida conforme o índice de atividades">${grid}
+      ${mk(ref,"ref. "+n1(ref)+"%","var(--chart-3)")}${mk(lim,"limite "+n1(lim)+"%","var(--warn)")}
+      <path d="${path}" fill="none" stroke="var(--chart-1)" stroke-width="2.5"/>
+      ${pts.map(p=>`<circle cx="${sx(p.x)}" cy="${sy(p.m)}" r="3" fill="var(--chart-1)"><title>${n1(p.x)}% → margem ${pct(p.m)}</title></circle>`).join("")}
+      <text x="${(W+ml)/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="var(--ink-3)">Índice mensal de atividades produtivas (% das estações)</text>
+    </svg>
+    <div class="note" style="margin-top:8px">${be? `<b>A margem zera com índice de ${pct(be,2)}</b>, ou ${n1(r.K.NE*be/100)} visitas/mês. `:"A margem fica positiva em toda a faixa simulada. "}Veja na aba Premissas como o contrato trata o volume acima do limite operacional.</div></div></div>
+    <div class="card" style="margin-top:16px"><div class="tbl-wrap"><table class="dt"><thead><tr><th>Cenário</th><th>Índice</th><th>Visitas/mês</th><th>Custo/mês</th><th>Margem</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+function renderPremissas(r){
+  const el=document.getElementById("tab-premissas");
+  const f = D.slaFaixas.map(x=>`<tr><td class="t">${x.rotulo}</td><td>${x.ta==null?"a acordar":n0(x.ta*60)+" min"}</td><td>${x.td==null?"negociado":"até "+x.td+" h"}</td><td>até ${x.tr} h</td><td>${x.ttr==null?"a definir":n1(x.ttr)+" h"}</td></tr>`).join("");
+  const p = D.penalidades.map((x,i)=>`<tr><td class="t">${i===0?"≥ "+x.min+"%":"≥ "+x.min+"% e < "+D.penalidades[i-1].min+"%"}</td><td>${x.onus? x.onus+"% da fatura":"—"}</td></tr>`).join("");
+  el.innerHTML = `<div class="grid2">
+    <div class="card"><div class="card-h"><h2>SLA de atendimento</h2></div><div class="tbl-wrap"><table class="dt"><thead><tr><th>Distância</th><th>Acionamento</th><th>Deslocamento</th><th>Reparo</th><th>TTR</th></tr></thead><tbody>${f}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Penalidade mensal</h2></div><div class="tbl-wrap"><table class="dt"><thead><tr><th>Atendimentos no SLA</th><th>Ônus</th></tr></thead><tbody>${p}</tbody></table></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="card-b" style="display:grid;gap:8px">
+    <div class="note">Índice de referência do escopo atual: <b>${pct(r.idxRef,1)}</b> · limite operacional: <b>${pct(r.idxRef+D.indices.acrescimoOperacional,1)}</b>.</div>
+    ${(D.premissas||[]).map(t=>`<div class="note">${t}</div>`).join("") || `<div class="note warn">Carregue o arquivo de dados para ver as premissas do projeto.</div>`}
+  </div></div>`;
+}
+
+/* ---------------- Mapa ---------------- */
+let map=null, lyr={};
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function initMap(){
+  const el=document.getElementById("map");
+  if(!window.L){ el.innerHTML=`<div class="map-fallback">O mapa precisa de internet (Leaflet via cdnjs). O restante do simulador funciona offline.</div>`; return; }
+  map = L.map(el,{zoomSnap:0.5, worldCopyJump:false}).setView([-14.5,-52],4);
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`,{maxZoom:12, attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+  lyr.ufs=L.layerGroup().addTo(map); lyr.bases=L.layerGroup().addTo(map); lyr.raios=L.layerGroup().addTo(map); lyr.scpc=L.layerGroup().addTo(map); lyr.imp=L.layerGroup().addTo(map);
+  map.on("click", e=>{
+    const nome = prompt("Nome da nova base técnica:", "Base "+(BASES.length+1)); if(!nome) return;
+    BASES.push({nome, lat:+e.latlng.lat.toFixed(3), lng:+e.latlng.lng.toFixed(3), clt:0, pj:0, cred:1}); renderParams(); update();
+  });
+  document.getElementById("lyrRaios").addEventListener("change",ev=>{ ev.target.checked? lyr.raios.addTo(map) : map.removeLayer(lyr.raios); });
+  document.getElementById("lyrScpc").addEventListener("change",ev=>{ ev.target.checked? lyr.scpc.addTo(map) : map.removeLayer(lyr.scpc); });
+}
+function renderMap(r){
+  if(!map) return;
+  Object.values(lyr).forEach(l=>l.clearLayers());
+  const c = {ok:cssVar("--ok"), warn:cssVar("--warn"), bad:cssVar("--bad"), info:cssVar("--info"), acc:cssVar("--accent"), p4:cssVar("--chart-4")};
+  const maxN = Math.max(1,...r.K.linhas.map(l=>l.n));
+  const ativos = TIPOS.filter(t=>P.grupos[t.g]);
+  r.K.linhas.forEach(l=>{
+    const col = l.faixa.td==null? c.info : l.sla>=95.1? c.ok : l.sla>=90? c.warn : c.bad;
+    const rad = 6+Math.sqrt(l.n/maxN)*30;
+    const rows = ativos.filter(t=>l.porTipo[t.id]).map(t=>`<tr><td>${t.nome}</td><td>${n0(l.porTipo[t.id])}</td></tr>`).join("");
+    L.circleMarker(UF[l.uf].c,{radius:rad, color:col, weight:1.5, fillColor:col, fillOpacity:.35}).addTo(lyr.ufs)
+      .bindPopup(`<b>${UF[l.uf].n} (${l.uf})</b><table>${rows}<tr><td><b>Total</b></td><td><b>${n0(l.n)}</b></td></tr>
+        <tr><td>Visitas/mês</td><td>${n1(l.v)}</td></tr><tr><td>km médio (ida)</td><td>${n0(l.km)}</td></tr>
+        <tr><td>Base</td><td>${l.base?esc(l.base.nome):"—"}</td></tr><tr><td>SLA estimado</td><td>${pct(l.sla)}</td></tr>
+        <tr><td>Custo variável</td><td>${R$0(l.var)}</td></tr></table>`);
+    L.marker(UF[l.uf].c,{icon:L.divIcon({className:"", html:`<div style="font:600 10.5px var(--sans);color:var(--ink);text-shadow:0 0 3px var(--panel),0 0 3px var(--panel);transform:translate(-50%,-50%);white-space:nowrap">${l.uf} ${n0(l.n)}</div>`}), interactive:false}).addTo(lyr.ufs);
+  });
+  BASES.forEach((b,i)=>{
+    if(!temGente(b)) return;
+    const u = r.K.basesUso[i]; const own = proprios(b)>0;
+    const m = L.marker([b.lat,b.lng],{draggable:true, opacity: u.ativa?1:.45, icon:L.divIcon({className: own?"base-icon":"base-icon cred", iconSize:[14,14]})}).addTo(lyr.bases)
+      .bindTooltip(`<b>${esc(b.nome)}</b><br>${own? `${b.clt||0} CLT${b.pj?` + ${b.pj} PJ`:""}` : `${b.cred} credenciado(s)`} · ${n1(u.v)} visitas/mês${u.ocup!=null?` · ocupação ${pct(u.ocup)}`:""}${u.ativa?"":"<br>sem atendimento no escopo"}`);
+    m.on("dragend",ev=>{ const p=ev.target.getLatLng(); b.lat=+p.lat.toFixed(3); b.lng=+p.lng.toFixed(3); renderParams(); update(); });
+    if(own) [[100,.9],[300,.6],[800,.3]].forEach(([km,o])=>L.circle([b.lat,b.lng],{radius:km*1000/P.fatorRota, color:c.acc, weight:1, opacity:o*.6, fill:false, dashArray:km===800?"4 4":null, interactive:false}).addTo(lyr.raios));
+  });
+  if(P.grupos.vsat) (D.scpcCidades||[]).forEach(s=>L.circleMarker([s.lat,s.lng],{radius:4, color:c.p4, fillColor:c.p4, fillOpacity:.9, weight:1}).addTo(lyr.scpc).bindTooltip(`SCPC · ${esc(s.cidade)}/${s.uf}${s.obs?" · "+esc(s.obs):""}`));
+  IMPORT.forEach(s=>{ if(!isFinite(s.lat)||!isFinite(s.lng)) return; const nb=nearestBase([s.lat,s.lng]); const km=nb.km*P.fatorRota; const f=faixa(km);
+    L.circleMarker([s.lat,s.lng],{radius:3, color:c.p4, fillColor:c.p4, fillOpacity:.8, weight:0}).addTo(lyr.imp)
+      .bindTooltip(`${esc(s.tipo||"")} ${esc(s.cidade||"")}/${esc(s.uf||"")} · ${n0(km)} km de ${nb.base?esc(nb.base.nome):"—"} · ${esc(f.rotulo)}`); });
+}
+
+/* ---------------- Import / export ---------------- */
+function download(name, text, type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
+document.getElementById("btnExport").onclick=()=>download("cenario-field-service.json", JSON.stringify({P,BASES,IMPORT},null,2), "application/json");
+document.getElementById("btnImport").onclick=()=>document.getElementById("fileCenario").click();
+document.getElementById("fileCenario").onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{ try{ const s=JSON.parse(t); P=deepMerge(clone(PADRAO), s.P||{}); if(s.BASES) BASES=s.BASES; if(s.IMPORT) IMPORT=s.IMPORT; renderParams(); update(); }catch(err){ alert("Arquivo de cenário inválido."); } }); e.target.value=""; };
+document.getElementById("btnReset").onclick=()=>{ if(!confirm("Voltar todos os parâmetros e bases ao padrão?")) return; P=clone(PADRAO); BASES=clone(BASES_PADRAO); IMPORT=[]; renderParams(); update(); };
+document.getElementById("btnImportDados").onclick=()=>document.getElementById("fileDados").click();
+document.getElementById("fileDados").onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{
+  try{
+    let obj; const s=t.trim();
+    if(s.startsWith("{")) obj=JSON.parse(s);
+    else { const m = s.match(/window\.(?:SIM|RFP)_DATA\s*=\s*([\s\S]*?);?\s*$/); obj = (new Function("return ("+m[1].replace(/;\s*$/,"")+")"))(); }
+    D = normDados(obj); try{ localStorage.setItem(KEY+".dados", JSON.stringify(obj)); }catch(err){}
+    document.getElementById("semDadosBanner").classList.add("hidden"); update();
+  }catch(err){ alert("Não consegui ler o arquivo de dados."); }
+}); e.target.value=""; };
+document.getElementById("btnCsv").onclick=()=>{
+  if(IMPORT.length && confirm(`Há ${IMPORT.length} estações importadas. OK = remover e importar outro arquivo; Cancelar = baixar modelo de CSV.`)){ IMPORT=[]; update(); document.getElementById("fileCsv").click(); return; }
+  if(!IMPORT.length && !confirm("Importar um CSV de estações?\nColunas: tipo;uf;cidade;lat;lng (tipo = ka, ku, nr10, scpc, sita, slf, slm)\n\nOK = escolher arquivo · Cancelar = baixar modelo")){ download("modelo-estacoes.csv","tipo;uf;cidade;lat;lng\nku;PA;Altamira;-3.203;-52.206\nslm;SC;Itajaí;-26.908;-48.662\n","text/csv"); return; }
+  if(!IMPORT.length) document.getElementById("fileCsv").click(); else download("modelo-estacoes.csv","tipo;uf;cidade;lat;lng\n","text/csv");
+};
+document.getElementById("fileCsv").onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{
+  const lines=t.split(/\r?\n/).filter(x=>x.trim()); const sep = lines[0].includes(";")?";":",";
+  const hdr=lines[0].toLowerCase().split(sep).map(s=>s.trim());
+  const ix = k=>hdr.findIndex(h=>h===k || (k==="lng"&&(h==="lon"||h==="long"||h==="longitude")) || (k==="lat"&&h==="latitude"));
+  const iT=ix("tipo"), iU=ix("uf"), iC=ix("cidade"), iLa=ix("lat"), iLo=ix("lng");
+  if(iLa<0||iLo<0){ alert("O CSV precisa das colunas lat e lng."); return; }
+  const num = v=>parseFloat(String(v||"").trim().replace(",","."));
+  IMPORT = lines.slice(1).map(l=>{ const c=l.split(sep); return {tipo:iT>=0?c[iT].trim():"", uf:iU>=0?c[iU].trim().toUpperCase():"", cidade:iC>=0?c[iC].trim():"", lat:num(c[iLa]), lng:num(c[iLo])}; }).filter(s=>isFinite(s.lat)&&isFinite(s.lng));
+  alert(IMPORT.length+" estações importadas. As UFs com estações importadas passam a usar a distância real até a base mais próxima.");
+  update();
+}); e.target.value=""; };
+function exportLpuCsv(r){
+  const L=[["Grupo / lote","Descrição","Unidade","Preço sem impostos (R$)","Impostos (%)","Impostos (R$)","Preço bruto unitário (R$)","Estações","Faturamento mensal (R$)"]];
+  Object.keys(GRUPOS).forEach(g=>{ const x=r.G[g]; if(!P.grupos[g]||!x.n) return;
+    L.push([GRUPOS[g]+" / Lote "+P.lote,"Manutenção recorrente por estação","R$/estação/mês",x.semImp.toFixed(2),r.A.nota.toFixed(2),x.impNota.toFixed(2),x.preco.toFixed(2),x.n,x.R.toFixed(2)]); });
+  L.push([]); L.push(["Grupo","Serviço","Unidade","Preço bruto unitário (R$)"]);
+  Object.keys(GRUPOS).forEach(g=>{ const x=r.G[g]; if(!P.grupos[g]||!x.n) return;
+    L.push([GRUPOS[g],"Visita produtiva / manutenção corretiva","R$/visita",x.visita.toFixed(2)]);
+    L.push([GRUPOS[g],"Visita improdutiva","R$/visita",x.improdutiva.toFixed(2)]);
+    L.push([GRUPOS[g],"Atendimento fora da planta","R$/visita",x.foraPlanta.toFixed(2)]); });
+  L.push([]); L.push(["Índice de atividades",r.indice+"%"],["Margem líquida",r.margem.toFixed(2)+"%"],["SLA estimado",r.slaPct.toFixed(1)+"%"],["Regime",P.regime]);
+  download("lpu-simulada-lote-"+P.lote+".csv", "﻿"+L.map(l=>l.map(v=>String(v).replace(".",",")).join(";")).join("\n"), "text/csv");
+}
+
+/* ---------------- Início ---------------- */
+load();
+let temDadosSalvos=false; try{ temDadosSalvos=!!localStorage.getItem(KEY+".dados"); }catch(e){}
+if(!(window.SIM_DATA||window.RFP_DATA) && !temDadosSalvos) document.getElementById("semDadosBanner").classList.remove("hidden");
+try{ const t=localStorage.getItem(KEY+".tab"); if(t){ const b=document.querySelector(`#tabs button[data-t="${t}"]`); if(b) b.click(); } }catch(e){}
+renderParams(); initMap(); update();
+})();
+</script>
+</body>
+</html>
