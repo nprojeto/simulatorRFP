@@ -74,7 +74,7 @@ window.SIM_DATA = {
     "<b>Deslocamento (2.9):</b> deslocamento terrestre e embarcação de linha estão no preço. Fretamento fluvial, 4×4, aéreo, andaime e banheiro químico são reembolsáveis com aprovação prévia (item 6) e entram na aba Mobilização da LPU.",
     "<b>Pagamento (4):</b> 45 dias após aprovação da NF. Estações novas só entram na cobrança 90 dias após a instalação.",
     "<b>Seguro-garantia (9):</b> 10% do valor do contrato, entregue em até 30 dias da assinatura. Sem a garantia aceita, nenhum pagamento é feito.",
-    "<b>Quantidade (2.11):</b> o parque pode variar ±3%. As estações NR-10 SEP exigem 2 técnicos CLT.",
+    "<b>Quantidade (2.11):</b> o parque pode variar ±3%. As estações NR-10 SEP exigem 2 técnicos CLT (no simulador: 2 técnicos + 2 auxiliares por atendimento).",
     "<b>Logística de sobressalentes (2.6):</b> o frete técnico ↔ sede ↔ laboratório é da contratada. Retorno à sede em até 5 dias úteis e ao laboratório em até 2 dias úteis.",
     "<b>Software de localização (2.13):</b> a contratada mantém, por conta própria, o rastreamento dos técnicos e uma licença de visualização para o cliente."
   ],
@@ -380,7 +380,7 @@ const UFS = Object.keys(UF).sort();
 const TIPOS = [
   {id:"ka",  nome:"Ka",               g:"vsat"},
   {id:"ku",  nome:"Ku e C Padrão",    g:"vsat"},
-  {id:"nr10",nome:"NR10 SEP (2 téc.)",g:"vsat"},
+  {id:"nr10",nome:"NR10 SEP (2 téc. + 2 aux.)",g:"vsat"},
   {id:"scpc",nome:"SCPC",             g:"vsat"},
   {id:"sita",nome:"SITA",             g:"vsat"},
   {id:"slf", nome:"Starlink Fixa",    g:"slf"},
@@ -415,9 +415,9 @@ const BASES_PADRAO = [
   {nome:"Rio de Janeiro",   lat:-22.91, lng:-43.17, clt:1, pj:0, cred:0},
   {nome:"Curitiba",         lat:-25.43, lng:-49.27, clt:1, pj:0, cred:0},
   {nome:"Itajaí",           lat:-26.91, lng:-48.66, clt:2, pj:0, cred:0},
-  {nome:"Porto Alegre",     lat:-30.03, lng:-51.23, clt:2, pj:0, cred:0},
-  {nome:"Salvador",         lat:-12.97, lng:-38.50, clt:2, pj:0, cred:0},
-  {nome:"Recife",           lat:-8.05,  lng:-34.88, clt:2, pj:0, cred:0},
+  {nome:"Porto Alegre",     lat:-30.03, lng:-51.23, clt:2, pj:0, cred:0, aux:2},
+  {nome:"Salvador",         lat:-12.97, lng:-38.50, clt:2, pj:0, cred:0, aux:2},
+  {nome:"Recife",           lat:-8.05,  lng:-34.88, clt:2, pj:0, cred:0, aux:2},
   {nome:"Belém",            lat:-1.46,  lng:-48.50, clt:1, pj:0, cred:0},
   {nome:"Belo Horizonte",   lat:-19.92, lng:-43.94, clt:0, pj:0, cred:1},
   {nome:"Uberlândia",       lat:-18.92, lng:-48.28, clt:0, pj:0, cred:1},
@@ -467,14 +467,14 @@ const PADRAO = {
   // Operação
   velocidade:60, fatorRota:1.3, adminH:0.5, limiarDiaria:250, eficienciaSla:97,
   tipos:{
-    ka:{rep:1.5, tec:1, mat:45}, ku:{rep:1.5, tec:1, mat:45}, nr10:{rep:2.0, tec:2, mat:60},
+    ka:{rep:1.5, tec:1, aux:0, mat:45}, ku:{rep:1.5, tec:1, aux:0, mat:45}, nr10:{rep:2.0, tec:2, aux:2, mat:60},
     scpc:{rep:2.5, tec:1, mat:80}, sita:{rep:1.5, tec:1, mat:45}, slf:{rep:1.0, tec:1, mat:35}, slm:{rep:1.5, tec:1, mat:50}
   },
-  improdutivasPct:8,           // visitas improdutivas não remuneradas (% sobre visitas)
+  improdutivasPct:8, nr10SoClt:true,           // visitas improdutivas não remuneradas (% sobre visitas)
   // Custos variáveis
   custoKm:1.20, diaria:380,
   // Equipe
-  salario:3800, encargos:85, sobreaviso:20, beneficios:1350, custoPJ:9500, credVisita:450,
+  salario:3800, encargos:85, sobreaviso:20, beneficios:1350, custoPJ:9500, credVisita:450, salarioAux:2400, credAuxVisita:250,
   horasMes:176, utilizacao:60,
   veiculoMes:2900, ferramental:22000, amortMeses:36, sstTec:260, softwareTec:70,
   coordQtd:5, coordSalario:5200, gestorMes:16000,
@@ -495,7 +495,7 @@ function clone(o){return JSON.parse(JSON.stringify(o));}
 function deepMerge(a,b){ for(const k in b){ if(b[k] && typeof b[k]==="object" && !Array.isArray(b[k]) && a[k] && typeof a[k]==="object") deepMerge(a[k],b[k]); else a[k]=b[k]; } return a; }
 function load(){
   P = clone(PADRAO); BASES = clone(BASES_PADRAO);
-  try{ const s = JSON.parse(localStorage.getItem(KEY)||"null"); if(s){ if(s.P) deepMerge(P,s.P); if(Array.isArray(s.BASES)) BASES=s.BASES; if(Array.isArray(s.IMPORT)) IMPORT=s.IMPORT; } }catch(e){}
+  try{ const s = JSON.parse(localStorage.getItem(KEY)||"null"); if(s){ if(s.P) deepMerge(P,s.P); if(Array.isArray(s.BASES)) BASES=s.BASES.map(b=>{ if(b.aux==null){ const d=BASES_PADRAO.find(x=>x.nome===b.nome); b.aux = d&&d.aux? d.aux:0; } return b; }); if(Array.isArray(s.IMPORT)) IMPORT=s.IMPORT; } }catch(e){}
   try{ const dd = localStorage.getItem(KEY+".dados"); if(!(window.SIM_DATA||window.RFP_DATA) && dd){ D = normDados(JSON.parse(dd)); } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify({P,BASES,IMPORT})); }catch(e){} }
@@ -516,7 +516,7 @@ function hav(a,b){ const R=6371, r=Math.PI/180; const dLat=(b[0]-a[0])*r, dLng=(
   const x=Math.sin(dLat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
 const proprios = b => (+b.clt||0)+(+b.pj||0);
 const temGente = b => proprios(b)+(+b.cred||0) > 0;
-function nearestBase(pt){ let best=null, bi=-1, bd=Infinity; BASES.forEach((b,i)=>{ if(!temGente(b)) return; const d=hav(pt,[b.lat,b.lng]); if(d<bd){bd=d;best=b;bi=i;} }); return {base:best, idx:bi, km:bd}; }
+function nearestBase(pt, filtro){ let best=null, bi=-1, bd=Infinity; BASES.forEach((b,i)=>{ if(!temGente(b) || (filtro && !filtro(b))) return; const d=hav(pt,[b.lat,b.lng]); if(d<bd){bd=d;best=b;bi=i;} }); return {base:best, idx:bi, km:bd}; }
 function faixa(km){ return D.slaFaixas.find(f=>km<=f.ate) || D.slaFaixas[D.slaFaixas.length-1]; }
 function ufsDoLote(l){ return l==="A"? D.lotes.A : l==="B"? D.lotes.B : UFS; }
 function indiceRef(g){
@@ -533,19 +533,22 @@ function onusSla(slaPct){ const t = D.penalidades.find(p=>slaPct>=p.min) || D.pe
 /* Amostras de localização das estações dentro da UF.
    Sem lat/long: 15 pontos num disco de área equivalente à da UF (centro + anel 55% + anel 90%),
    cada ponto atendido pela base mais próxima. Com CSV importado: as estações reais. */
+const ehCLT = b => (+b.clt||0) >= 2;                     // base capaz de atender NR10 SEP (2 técnicos CLT)
+function ptNR(ll, km){ const nb = nearestBase(ll, ehCLT); return isFinite(nb.km)? {kmNR: Math.max(8, nb.km*P.fatorRota), bNR: nb.idx} : {kmNR: km, bNR: -1}; }
 function amostrasUF(uf){
   const c = UF[uf].c;
   const ov = +P.overrideKm[uf];
-  if(ov>0){ const nb=nearestBase(c); return {fonte:"manual", pts:[{km:ov, w:1, b:nb.idx}]}; }
+  if(ov>0){ const nb=nearestBase(c); const nr=nearestBase(c, ehCLT); return {fonte:"manual", pts:[{km:ov, w:1, b:nb.idx, kmNR:ov, bNR:nr.idx}]}; }
   const imp = IMPORT.filter(s=>s.uf===uf && isFinite(s.lat) && isFinite(s.lng));
   if(imp.length && BASES.some(temGente)){
-    return {fonte:"importado ("+imp.length+")", pts: imp.map(s=>{ const nb=nearestBase([s.lat,s.lng]); return {km:Math.max(5,nb.km*P.fatorRota), w:1/imp.length, b:nb.idx}; })};
+    return {fonte:"importado ("+imp.length+")", pts: imp.map(s=>{ const nb=nearestBase([s.lat,s.lng]); const km=Math.max(5,nb.km*P.fatorRota); return Object.assign({km, w:1/imp.length, b:nb.idx}, ptNR([s.lat,s.lng], km)); })};
   }
   const R = Math.sqrt(UF[uf].a*1000/Math.PI);
   const kLat = 111.0, kLng = 111.0*Math.cos(c[0]*Math.PI/180);
   const pts = [];
   const add = (r,ang,w)=>{ const lat=c[0]+r*Math.sin(ang)/kLat, lng=c[1]+r*Math.cos(ang)/kLng; const nb=nearestBase([lat,lng]);
-    pts.push({km: Math.max(8,(isFinite(nb.km)? nb.km : R)*P.fatorRota), w, b:nb.idx}); };
+    const km = Math.max(8,(isFinite(nb.km)? nb.km : R)*P.fatorRota);
+    pts.push(Object.assign({km, w, b:nb.idx}, ptNR([lat,lng], km))); };
   add(0,0,0.09);
   for(let i=0;i<6;i++) add(0.55*R, i*Math.PI/3, 0.4725/6);
   for(let i=0;i<8;i++) add(0.9*R, i*Math.PI/4+Math.PI/8, 0.4375/8);
@@ -558,7 +561,8 @@ function custos(indice){
   const ativos = TIPOS.filter(t=>P.grupos[t.g]);
   const linhas = [];
   const porTipo = {}; TIPOS.forEach(t=>porTipo[t.id]={n:0,v:0,h:0,var:0,vEff:0,km:0});
-  const bs = BASES.map(()=>({v:0, h:0, var:0}));
+  const bs = BASES.map(()=>({v:0, h:0, ha:0, var:0, auxAvulso:0}));
+  let Haux=0;
   let H=0, Hown=0, VAR=0, NV=0, NE=0, slaPond=0, slaPeso=0, negPeso=0;
   ufs.forEach(uf=>{
     const am = amostrasUF(uf);
@@ -570,35 +574,50 @@ function custos(indice){
       const n = +D.estacoes[t.id][uf]||0; if(!n) return;
       const tp = P.tipos[t.id];
       const v = n*indice/100, vEff = v*(1+P.improdutivasPct/100);
-      let h=0, cv=0, kmv=0;
-      am.pts.forEach(p=>{
+      let h=0, cv=0, kmv=0, okT=0, negT=0;
+      const soCLT = P.nr10SoClt && t.id==="nr10";
+      am.pts.forEach(p0=>{
+        const p = soCLT && p0.bNR>=0 ? {w:p0.w, km:p0.kmNR, b:p0.bNR} : p0;   // NR10 SEP: só base própria com 2+ CLT
         const b = BASES[p.b]; const own = b && proprios(b)>0;
         const vv = vEff*p.w;
-        const hv = (2*p.km/P.velocidade + tp.rep + P.adminH)*tp.tec;
-        const c1 = 2*p.km*P.custoKm + tp.mat + (p.km>P.limiarDiaria? P.diaria*tp.tec : 0) + (own? 0 : P.credVisita*tp.tec);
-        h += hv*vv; cv += c1*vv; kmv += p.km*v*p.w;
-        if(p.b>=0){ bs[p.b].v += v*p.w; bs[p.b].var += c1*vv; if(own){ bs[p.b].h += hv*vv; Hown += hv*vv; } }
+        const aux = +tp.aux||0;
+        const hVisita = 2*p.km/P.velocidade + tp.rep + P.adminH;
+        const hv = hVisita*tp.tec, ha = hVisita*aux;
+        const auxProprio = own && (+b.aux||0) > 0;          // base própria com auxiliares no quadro
+        const c1 = 2*p.km*P.custoKm + tp.mat + (p.km>P.limiarDiaria? P.diaria*(tp.tec+aux) : 0)
+                 + (own? 0 : P.credVisita*tp.tec) + (auxProprio? 0 : P.credAuxVisita*aux);
+        h += (hv+ha)*vv; cv += c1*vv; kmv += p.km*v*p.w;
+        const sl = dentroSla(p.km); okT += p.w*sl.ok; negT += p.w*sl.neg;
+        if(p.b>=0){ bs[p.b].v += v*p.w; bs[p.b].var += c1*vv; if(own){ bs[p.b].h += hv*vv; Hown += hv*vv; } if(auxProprio){ bs[p.b].ha += ha*vv; Haux += ha*vv; } else if(aux>0){ bs[p.b].auxAvulso += aux*vv; } }
       });
       row.n+=n; row.v+=v; row.h+=h; row.var+=cv; row.porTipo[t.id]=n;
+      row.okSum=(row.okSum||0)+okT*v; row.negSum=(row.negSum||0)+negT*v;
       const pt=porTipo[t.id]; pt.n+=n; pt.v+=v; pt.vEff+=vEff; pt.h+=h; pt.var+=cv; pt.km+=kmv;
     });
+    if(row.v>0){ row.sla = row.okSum/row.v*100*(P.eficienciaSla/100); row.neg = row.negSum/row.v; row.km = row.porKm!=null? row.porKm : row.km; }
     if(row.n>0){ linhas.push(row); H+=row.h; VAR+=row.var; NV+=row.v; NE+=row.n; slaPond+=row.sla*row.v; slaPeso+=row.v; negPeso+=row.neg*row.v; }
   });
   // equipe própria: só bases com atendimento no escopo
   const custoCLT = P.salario*(1+P.encargos/100+P.sobreaviso/100)+P.beneficios;
   const custoTec = P.veiculoMes + P.ferramental/Math.max(1,P.amortMeses) + P.sstTec + P.softwareTec;
   const horaExtraH = P.salario/P.horasMes*1.5*(1+P.encargos/100);
-  let clt=0, pj=0, cred=0, cap=0, deficit=0, equipe=0, porTec=0;
+  const custoAux = P.salarioAux*(1+P.encargos/100+P.sobreaviso/100)+P.beneficios+P.sstTec;
+  const horaExtraAux = P.salarioAux/P.horasMes*1.5*(1+P.encargos/100);
+  let clt=0, pj=0, cred=0, auxT=0, cap=0, capAux=0, deficit=0, defAux=0, equipe=0, porTec=0, equipeAux=0;
   const basesUso = BASES.map((b,i)=>{
     const s = bs[i]; const ativa = s.v>0.0001;
     const tecs = proprios(b); const capB = tecs*P.horasMes*P.utilizacao/100;
     const def = tecs>0? Math.max(0, s.h-capB) : 0;
+    const nAux = tecs>0? (+b.aux||0) : 0; const capA = nAux*P.horasMes*P.utilizacao/100; const dA = nAux>0? Math.max(0, s.ha-capA) : 0;
     if(ativa){ clt+=(+b.clt||0); pj+=(+b.pj||0); cred+=(+b.cred||0)*(tecs>0?0:1); cap+=capB; deficit+=def;
-      equipe += (+b.clt||0)*custoCLT + (+b.pj||0)*P.custoPJ; porTec += tecs*custoTec; }
-    return {b, i, ativa, tipo: tecs>0? "própria" : (b.cred>0? "credenciado":"—"), v:s.v, h:s.h, var:s.var, cap:capB, ocup: capB>0? s.h/capB*100 : null, deficit:def};
+      equipe += (+b.clt||0)*custoCLT + (+b.pj||0)*P.custoPJ; porTec += tecs*custoTec;
+      auxT += nAux; capAux += capA; defAux += dA; equipeAux += nAux*custoAux; }
+    return {b, i, ativa, tipo: tecs>0? "própria" : (b.cred>0? "credenciado":"—"), v:s.v, h:s.h, ha:s.ha, nAux, capA, ocupAux: capA>0? s.ha/capA*100 : null, auxAvulso:s.auxAvulso,
+      var:s.var, cap:capB, ocup: capB>0? s.h/capB*100 : null, deficit:def};
   });
   const tec = clt+pj;
-  const horaExtra = deficit*horaExtraH;
+  const horaExtra = deficit*horaExtraH + defAux*horaExtraAux;
+  equipe += equipeAux;
   const coord = P.coordQtd*(P.coordSalario*(1+P.encargos/100)+P.beneficios) + P.gestorMes;
   const outros = P.logistica + P.outrosFixos;
   const FIX = equipe + porTec + coord + outros + horaExtra;
@@ -610,7 +629,7 @@ function custos(indice){
   Object.values(grupos).forEach(g=>{ g.fix = H>0? FIX*g.h/H : 0; g.c=(g.fix+g.var)*(1+P.overhead/100); g.kmMedio = g.v>0? g.km/g.v : 0; });
   TIPOS.forEach(t=>{ const pt=porTipo[t.id]; pt.c = ((H>0?FIX*pt.h/H:0)+pt.var)*(1+P.overhead/100); });
   const slaEst = slaPeso>0? slaPond/slaPeso : 100;
-  return {linhas, porTipo, grupos, H, Hown, cap, deficit, horaExtra, VAR, FIX, equipe, porTec, coord, outros, OV, C, NV, NE, clt, pj, cred, tec, basesUso, slaEst, negPct: slaPeso? negPeso/slaPeso*100:0};
+  return {linhas, porTipo, grupos, H, Hown, Haux, auxT, capAux, defAux, equipeAux, cap, deficit, horaExtra, VAR, FIX, equipe, porTec, coord, outros, OV, C, NV, NE, clt, pj, cred, tec, basesUso, slaEst, negPct: slaPeso? negPeso/slaPeso*100:0};
 }
 
 function aliquotas(){
@@ -709,6 +728,7 @@ const SECOES = [
     {k:"fatorRota", l:"Fator de rota", s:"Estrada ÷ linha reta (1,2 a 1,5)", u:"×", st:0.05},
     {k:"adminH", l:"Tempo administrativo por visita", s:"Contato com NOC, RAT, fotos", u:"h", st:0.25},
     {k:"limiarDiaria", l:"Distância que exige pernoite", s:"Ida acima disso paga uma diária", u:"km", st:10},
+    {k:"nr10SoClt", l:"NR10 SEP só por base própria CLT", s:"Envia esses chamados à base mais próxima com 2+ técnicos CLT", chk:true},
     {k:"eficienciaSla", l:"Eficiência operacional", s:"% sem falhas por fila/peça/acesso", u:"%", st:0.5}
   ], extra:"tipos"},
   {t:"Custos variáveis por visita", campos:[
@@ -722,6 +742,8 @@ const SECOES = [
     {k:"beneficios", l:"Benefícios por pessoa", s:"VR/VA, saúde, seguro de vida", u:"R$/mês", st:50},
     {k:"custoPJ", l:"Técnico PJ dedicado", u:"R$/mês", st:100},
     {k:"credVisita", l:"Credenciado: valor por OS", s:"Mão de obra por técnico; km e diária pagos à parte", u:"R$/OS", st:10},
+    {k:"salarioAux", l:"Salário auxiliar técnico CLT", s:"Mesmos encargos, sobreaviso e benefícios", u:"R$/mês", st:100},
+    {k:"credAuxVisita", l:"Auxiliar avulso: valor por OS", s:"Quando a base não tem auxiliar no quadro", u:"R$/OS", st:10},
     {k:"horasMes", l:"Horas disponíveis por técnico", u:"h/mês", st:4},
     {k:"utilizacao", l:"Utilização produtiva", s:"Parte das horas em campo", u:"%", st:5},
     {k:"veiculoMes", l:"Veículo (locação/seguro)", u:"R$/téc./mês", st:100},
@@ -786,19 +808,19 @@ function renderParams(){
   elParams.innerHTML = h;
 }
 function tiposTable(){
-  let h = `<div style="margin-top:4px"><div style="font-size:12px;color:var(--ink-2);margin-bottom:4px">Por tipo de estação</div><table class="mini"><thead><tr><th>Tipo</th><th>Reparo (h)</th><th>Técnicos</th><th>Material R$</th></tr></thead><tbody>`;
+  let h = `<div style="margin-top:4px"><div style="font-size:12px;color:var(--ink-2);margin-bottom:4px">Por tipo de estação</div><table class="mini"><thead><tr><th>Tipo</th><th>Reparo (h)</th><th>Técnicos</th><th title="Auxiliares técnicos por atendimento">Aux.</th><th>Material R$</th></tr></thead><tbody>`;
   TIPOS.forEach(t=>{ const x=P.tipos[t.id];
-    h += `<tr><td>${t.nome}</td><td><input type="number" step="0.25" data-tipo="${t.id}" data-f="rep" value="${x.rep}"></td><td><input type="number" step="1" min="1" data-tipo="${t.id}" data-f="tec" value="${x.tec}"></td><td><input type="number" step="5" data-tipo="${t.id}" data-f="mat" value="${x.mat}"></td></tr>`; });
+    h += `<tr><td>${t.nome}</td><td><input type="number" step="0.25" data-tipo="${t.id}" data-f="rep" value="${x.rep}"></td><td><input type="number" step="1" min="1" data-tipo="${t.id}" data-f="tec" value="${x.tec}"></td><td><input type="number" step="1" min="0" data-tipo="${t.id}" data-f="aux" value="${x.aux||0}"></td><td><input type="number" step="5" data-tipo="${t.id}" data-f="mat" value="${x.mat}"></td></tr>`; });
   return h + `</tbody></table></div>`;
 }
 function basesTable(){
-  const clt = BASES.reduce((s,b)=>s+(+b.clt||0),0), pj = BASES.reduce((s,b)=>s+(+b.pj||0),0), cr = BASES.reduce((s,b)=>s+(+b.cred||0),0);
-  let h = `<div style="margin-top:6px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--ink-2)">Bases (${BASES.length}) · ${clt} CLT · ${pj} PJ · ${cr} cred.</span><button class="btn" id="addBase" style="padding:3px 8px;font-size:12px">+ base</button></div>
-  <div style="overflow-x:auto"><table class="mini"><thead><tr><th>Base</th><th>Lat</th><th>Lng</th><th title="Técnicos CLT próprios">CLT</th><th title="Técnicos PJ dedicados (mensal)">PJ</th><th title="Credenciados pagos por OS">Cred</th><th></th></tr></thead><tbody>`;
+  const clt = BASES.reduce((s,b)=>s+(+b.clt||0),0), pj = BASES.reduce((s,b)=>s+(+b.pj||0),0), cr = BASES.reduce((s,b)=>s+(+b.cred||0),0), ax = BASES.reduce((s,b)=>s+(+b.aux||0),0);
+  let h = `<div style="margin-top:6px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--ink-2)">Bases (${BASES.length}) · ${clt} CLT · ${ax} aux · ${pj} PJ · ${cr} cred.</span><button class="btn" id="addBase" style="padding:3px 8px;font-size:12px">+ base</button></div>
+  <div style="overflow-x:auto"><table class="mini"><thead><tr><th>Base</th><th>Lat</th><th>Lng</th><th title="Técnicos CLT próprios">CLT</th><th title="Auxiliares técnicos CLT (equipe NR-10 SEP)">Aux</th><th title="Técnicos PJ dedicados (mensal)">PJ</th><th title="Credenciados pagos por OS">Cred</th><th></th></tr></thead><tbody>`;
   BASES.forEach((b,i)=>{
-    h += `<tr><td><input class="txt" data-b="${i}" data-f="nome" value="${esc(b.nome)}" style="min-width:90px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lat" value="${b.lat}" style="width:56px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lng" value="${b.lng}" style="width:56px"></td><td><input type="number" min="0" data-b="${i}" data-f="clt" value="${b.clt||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="pj" value="${b.pj||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="cred" value="${b.cred||0}" style="width:34px"></td><td class="x"><button class="icon-btn" data-del="${i}" title="Remover">✕</button></td></tr>`;
+    h += `<tr><td><input class="txt" data-b="${i}" data-f="nome" value="${esc(b.nome)}" style="min-width:90px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lat" value="${b.lat}" style="width:56px"></td><td><input type="number" step="0.01" data-b="${i}" data-f="lng" value="${b.lng}" style="width:56px"></td><td><input type="number" min="0" data-b="${i}" data-f="clt" value="${b.clt||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="aux" value="${b.aux||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="pj" value="${b.pj||0}" style="width:34px"></td><td><input type="number" min="0" data-b="${i}" data-f="cred" value="${b.cred||0}" style="width:34px"></td><td class="x"><button class="icon-btn" data-del="${i}" title="Remover">✕</button></td></tr>`;
   });
-  return h + `</tbody></table></div><div class="note" style="margin-top:6px"><b>CLT/PJ</b> = equipe própria, com custo fixo mensal. <b>Cred</b> = credenciado, pago por OS. Se a base tiver equipe própria, ela atende primeiro. Uma base entra no custo só quando atende alguma estação do escopo. Clique no mapa para criar uma base ou arraste uma base existente.</div></div>`;
+  return h + `</tbody></table></div><div class="note" style="margin-top:6px"><b>CLT/PJ</b> = equipe própria, com custo fixo mensal. <b>Aux</b> = auxiliares técnicos CLT da base, usados nas estações NR10 SEP (2 técnicos + 2 auxiliares). Sem auxiliar no quadro, o auxiliar é pago por OS. <b>Cred</b> = credenciado, pago por OS. Se a base tiver equipe própria, ela atende primeiro. Uma base entra no custo só quando atende alguma estação do escopo. Clique no mapa para criar uma base ou arraste uma base existente.</div></div>`;
 }
 elParams.addEventListener("change", onParam);
 elParams.addEventListener("input", e=>{ if(e.target.matches('input[type="number"]')) onParam(e); });
@@ -817,7 +839,7 @@ function onParam(e){
 }
 elParams.addEventListener("click", e=>{
   const d=e.target.closest("[data-del]"); if(d){ BASES.splice(+d.dataset.del,1); renderParams(); update(); return; }
-  if(e.target.id==="addBase"){ BASES.push({nome:"Nova base", lat:-15.8, lng:-47.9, clt:0, pj:0, cred:1}); renderParams(); update(); }
+  if(e.target.id==="addBase"){ BASES.push({nome:"Nova base", lat:-15.8, lng:-47.9, clt:0, pj:0, cred:1, aux:0}); renderParams(); update(); }
 });
 
 /* ---------------- Top bar ---------------- */
@@ -937,7 +959,7 @@ function renderUF(r){
 function renderCustos(r){
   const K=r.K, el=document.getElementById("tab-custos");
   const itens = [
-    ["Técnicos (salário, encargos, sobreaviso, benefícios / PJ)", K.equipe],
+    ["Técnicos e auxiliares (salário, encargos, sobreaviso, benefícios / PJ)", K.equipe],
     ["Veículos, ferramental, SST e software por técnico", K.porTec],
     ["Coordenação 24×7 e gestão do contrato", K.coord],
     ["Logística de sobressalentes e outros fixos", K.outros],
@@ -970,9 +992,9 @@ function renderCustos(r){
       <div class="card-b"><div class="note">Preço bruto = custo ÷ (1 − impostos − custo financeiro − seguro − ônus − contingência − margem). No Lucro Real, a margem líquida é convertida para antes do IR (÷ 0,66). Verifique também a retenção de INSS (11%) e de ISS na fonte, que afetam o caixa mas não o preço.</div></div>
     </div>
   </div>
-  <div class="card" style="margin-top:16px"><div class="card-h"><h2>Bases: visitas, horas e ocupação</h2><span class="sub">${K.clt} CLT · ${K.pj} PJ · ${K.cred} credenciados em uso · ${n0(K.Hown)} h/mês de equipe própria · ${n0(K.H)} h/mês no total</span></div>
-    <div class="tbl-wrap"><table class="dt"><thead><tr><th>Base</th><th style="text-align:left">Tipo</th><th>Técnicos</th><th>Visitas/mês</th><th>Horas/mês</th><th>Capacidade</th><th>Ocupação</th><th>Custo variável</th></tr></thead><tbody>
-    ${K.basesUso.filter(u=>u.ativa).sort((a,b)=>b.v-a.v).map(u=>`<tr><td class="t">${esc(u.b.nome)}</td><td class="t" style="text-align:left">${u.tipo==="própria"?`<span class="pill ok">própria</span>`:`<span class="pill neu">credenciado</span>`}</td><td>${u.tipo==="própria"? proprios(u.b) : (u.b.cred||0)}</td><td>${n1(u.v)}</td><td>${u.tipo==="própria"? n0(u.h):"—"}</td><td>${u.tipo==="própria"? n0(u.cap):"—"}</td><td>${u.ocup==null?"—":`<span class="pill ${u.ocup>100?"bad":u.ocup>85?"warn":"ok"}">${pct(u.ocup)}</span>`}</td><td>${R$0(u.var)}</td></tr>`).join("")}
+  <div class="card" style="margin-top:16px"><div class="card-h"><h2>Bases: visitas, horas e ocupação</h2><span class="sub">${K.clt} CLT · ${K.auxT} auxiliares · ${K.pj} PJ · ${K.cred} credenciados em uso · ${n0(K.Hown)} h/mês de equipe própria · ${n0(K.H)} h/mês no total</span></div>
+    <div class="tbl-wrap"><table class="dt"><thead><tr><th>Base</th><th style="text-align:left">Tipo</th><th>Técnicos</th><th>Aux.</th><th>Visitas/mês</th><th>Horas/mês</th><th>Capacidade</th><th>Ocupação</th><th>Ocup. aux.</th><th>Custo variável</th></tr></thead><tbody>
+    ${K.basesUso.filter(u=>u.ativa).sort((a,b)=>b.v-a.v).map(u=>`<tr><td class="t">${esc(u.b.nome)}</td><td class="t" style="text-align:left">${u.tipo==="própria"?`<span class="pill ok">própria</span>`:`<span class="pill neu">credenciado</span>`}</td><td>${u.tipo==="própria"? proprios(u.b) : (u.b.cred||0)}</td><td>${u.nAux? u.nAux : (u.auxAvulso>0.05? `<span title="auxiliares avulsos por mês">${n1(u.auxAvulso)} av.</span>` : "–")}</td><td>${n1(u.v)}</td><td>${u.tipo==="própria"? n0(u.h):"—"}</td><td>${u.tipo==="própria"? n0(u.cap):"—"}</td><td>${u.ocup==null?"—":`<span class="pill ${u.ocup>100?"bad":u.ocup>85?"warn":"ok"}">${pct(u.ocup)}</span>`}</td><td>${u.ocupAux==null?"—":`<span class="pill ${u.ocupAux>100?"bad":u.ocupAux>85?"warn":"ok"}">${pct(u.ocupAux)}</span>`}</td><td>${R$0(u.var)}</td></tr>`).join("")}
     </tbody></table></div>
     <div class="card-b"><div class="note">Com ~${n1(K.NV)} visitas/mês para ${n0(K.NE)} estações, quem define o número de técnicos é a <b>cobertura geográfica do SLA</b>, não as horas. Mantenha equipe própria onde há volume e use credenciados no interior. ${K.basesUso.filter(u=>!u.ativa&&temGente(u.b)).length? `${K.basesUso.filter(u=>!u.ativa&&temGente(u.b)).length} base(s) não atendem estações deste escopo e ficaram fora do custo.`:""}</div></div></div>`;
 }
@@ -1062,7 +1084,7 @@ function initMap(){
   lyr.ufs=L.layerGroup().addTo(map); lyr.bases=L.layerGroup().addTo(map); lyr.raios=L.layerGroup().addTo(map); lyr.scpc=L.layerGroup().addTo(map); lyr.imp=L.layerGroup().addTo(map);
   map.on("click", e=>{
     const nome = prompt("Nome da nova base técnica:", "Base "+(BASES.length+1)); if(!nome) return;
-    BASES.push({nome, lat:+e.latlng.lat.toFixed(3), lng:+e.latlng.lng.toFixed(3), clt:0, pj:0, cred:1}); renderParams(); update();
+    BASES.push({nome, lat:+e.latlng.lat.toFixed(3), lng:+e.latlng.lng.toFixed(3), clt:0, pj:0, cred:1, aux:0}); renderParams(); update();
   });
   document.getElementById("lyrRaios").addEventListener("change",ev=>{ ev.target.checked? lyr.raios.addTo(map) : map.removeLayer(lyr.raios); });
   document.getElementById("lyrScpc").addEventListener("change",ev=>{ ev.target.checked? lyr.scpc.addTo(map) : map.removeLayer(lyr.scpc); });
@@ -1088,7 +1110,7 @@ function renderMap(r){
     if(!temGente(b)) return;
     const u = r.K.basesUso[i]; const own = proprios(b)>0;
     const m = L.marker([b.lat,b.lng],{draggable:true, opacity: u.ativa?1:.45, icon:L.divIcon({className: own?"base-icon":"base-icon cred", iconSize:[14,14]})}).addTo(lyr.bases)
-      .bindTooltip(`<b>${esc(b.nome)}</b><br>${own? `${b.clt||0} CLT${b.pj?` + ${b.pj} PJ`:""}` : `${b.cred} credenciado(s)`} · ${n1(u.v)} visitas/mês${u.ocup!=null?` · ocupação ${pct(u.ocup)}`:""}${u.ativa?"":"<br>sem atendimento no escopo"}`);
+      .bindTooltip(`<b>${esc(b.nome)}</b><br>${own? `${b.clt||0} CLT${b.aux?` + ${b.aux} aux.`:""}${b.pj?` + ${b.pj} PJ`:""}` : `${b.cred} credenciado(s)`} · ${n1(u.v)} visitas/mês${u.ocup!=null?` · ocupação ${pct(u.ocup)}`:""}${u.ativa?"":"<br>sem atendimento no escopo"}`);
     m.on("dragend",ev=>{ const p=ev.target.getLatLng(); b.lat=+p.lat.toFixed(3); b.lng=+p.lng.toFixed(3); renderParams(); update(); });
     if(own) [[100,.9],[300,.6],[800,.3]].forEach(([km,o])=>L.circle([b.lat,b.lng],{radius:km*1000/P.fatorRota, color:c.acc, weight:1, opacity:o*.6, fill:false, dashArray:km===800?"4 4":null, interactive:false}).addTo(lyr.raios));
   });
